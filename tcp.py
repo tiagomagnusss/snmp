@@ -5,7 +5,5 @@ class TCP(DataManager):
   def __init__(self, session):
     self.session = session
     self.tags = ['tcpActiveOpens', 'tcpAttemptFails', 'tcpCurrEstab', 'tcpEstabResets',
-                 'tcpMaxConn', 'tcpInErrs', 'tcpInSegs', 'tcpOutRsts', 'tcpOutSegs',
-                 'tcpPassiveOpens', 'tcpRetransSegs', 'tcpRtoAlgorithm',
-                 'tcpRtoMax', 'tcpRtoMin']
+                 'tcpMaxConn', 'tcpInErrs', 'tcpOutRsts', 'tcpPassiveOpens']
     super().__init__(session, self.tags)
