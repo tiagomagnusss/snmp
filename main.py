@@ -1,7 +1,11 @@
 from PyQt5.QtWidgets import QMainWindow, QApplication, QWidget, QMessageBox, QComboBox, QRadioButton, QLabel, QAction, QFormLayout, QHBoxLayout, QVBoxLayout, QTableWidget, QTableView, QTableWidgetItem, QPushButton, QLineEdit
 from PyQt5.QtCore import pyqtSlot, Qt, QRegExp
 from PyQt5.QtGui import QPalette, QIcon, QColor, QRegExpValidator
+
 from agent import Agent
+from agent_manager import AgentManager
+from tcp import TCP
+from udp import UDP
 
 import pickle
 import sys
@@ -24,6 +28,9 @@ class mainGUI(QWidget):
         self.top = 0
         self.width = 1280
         self.height = 700
+        self.agent_manager = AgentManager()
+        self.defaultHeaders = ['IP', 'User', 'Auth Protocol', 'Privacy Protocol', 'Status']
+        self.headerCount = len(self.defaultHeaders)
         # self.root = root
         # self.courses = courses
         # self.periods = periods
@@ -53,18 +60,16 @@ class mainGUI(QWidget):
         ipRegex = QRegExp("^" + ipRange + "\\." + ipRange + "\\." + ipRange + "\\." + ipRange + "$")
         ipValidator = QRegExpValidator(ipRegex, self)
 
-        self.txtIp = QLineEdit(self)
+        self.txtIp = QLineEdit(self, placeholderText='IP address')
         self.txtIp.setValidator(ipValidator)
 
-        self.txtUser = QLineEdit(self)
+        self.txtUser = QLineEdit(self, placeholderText='Username')
         self.txtPassword = QLineEdit(self)
-        self.txtAuthProtocol = QLineEdit(self)
-        self.txtPrivacyProtocol = QLineEdit(self)
 
         self.cbAuthProtocol = QComboBox(self)
         self.cbAuthProtocol.setEditable(True)
         self.cbAuthProtocol.setAutoFillBackground(True)
-        self.cbAuthProtocol.addItems(['None', 'MD5', 'SHA'])
+        self.cbAuthProtocol.addItems(['MD5', 'SHA'])
 
         self.cbPrivacyProtocol = QComboBox(self)
         self.cbPrivacyProtocol.setEditable(True)
@@ -95,8 +100,10 @@ class mainGUI(QWidget):
         # cria a tabela
         self.tblAgents = QTableWidget(self)
         self.tblAgents.setRowCount(0)
-        self.tblAgents.setColumnCount(6)
-        self.tblAgents.setHorizontalHeaderLabels(['IP', 'User', 'Password', 'Auth Protocol', 'Privacy Protocol', 'Actions'])
+
+        self.headerCount += len(UDP.headers) + len(TCP.headers) + 1
+        self.tblAgents.setColumnCount(self.headerCount)
+        self.tblAgents.setHorizontalHeaderLabels(self.defaultHeaders + UDP.headers + TCP.headers + ['Actions'])
 
         # carrega os agentes
         self.agents = self.loadAgents()
@@ -130,18 +137,29 @@ class mainGUI(QWidget):
 
         # adiciona uma linha
         self.tblAgents.insertRow(rowPosition)
+        agentData = self.agent_manager.data[agent.ip]
+        tcpData = agentData['tcp']
+        udpData = agentData['udp']
 
         # adiciona os dados
         self.tblAgents.setItem(rowPosition, 0, QTableWidgetItem(agent.ip))
         self.tblAgents.setItem(rowPosition, 1, QTableWidgetItem(agent.user))
-        self.tblAgents.setItem(rowPosition, 2, QTableWidgetItem(agent.password))
-        self.tblAgents.setItem(rowPosition, 3, QTableWidgetItem(agent.authProtocol))
-        self.tblAgents.setItem(rowPosition, 4, QTableWidgetItem(agent.privacyProtocol))
+        self.tblAgents.setItem(rowPosition, 2, QTableWidgetItem(agent.authProtocol))
+        self.tblAgents.setItem(rowPosition, 3, QTableWidgetItem(agent.privacyProtocol))
+        self.tblAgents.setItem(rowPosition, 4, QTableWidgetItem(agent.status))
+
+        # adiciona os dados do udp
+        for index, item in enumerate(UDP.tags):
+            self.tblAgents.setItem(rowPosition, index + 5, QTableWidgetItem(udpData[item]))
+
+        # adiciona os dados do tcp
+        for index, item in enumerate(TCP.tags):
+            self.tblAgents.setItem(rowPosition, index + 8, QTableWidgetItem(tcpData[item]))
 
         # adiciona o botao de remover
         btnRemove = QPushButton('Remove', self)
         btnRemove.clicked.connect(self.on_remove)
-        self.tblAgents.setCellWidget(rowPosition, 5, btnRemove)
+        self.tblAgents.setCellWidget(rowPosition, self.headerCount - 1, btnRemove)
 
     @pyqtSlot()
     def on_remove(self):
@@ -151,6 +169,8 @@ class mainGUI(QWidget):
 
         # get row of button
         row = self.tblAgents.indexAt(button.pos()).row()
+
+        self.agent_manager.remove_agent(self.agents[row])
 
         # remove o agente da lista
         self.agents.pop(row)
@@ -171,32 +191,45 @@ class mainGUI(QWidget):
         authProtocol = self.cbAuthProtocol.currentText()
         privacyProtocol = self.cbPrivacyProtocol.currentText()
 
+        errors = []
         # verifica se os campos estao vazios
-        if ip == '' or user == '' or password == '' or authProtocol == '' or privacyProtocol == '':
-            QMessageBox.about(self, 'Error', 'All fields are required')
-            return
+        if ip == '':
+            errors.append('IP is required')
+        elif user == '':
+            errors.append('User is required')
+        elif privacyProtocol != 'None' and password == '':
+            errors.append('Password is required if privacy protocol is not None')
 
-        # print all information on a warning box
-        # QMessageBox.about(self, 'Warning', 'IP: ' + ip + '
-        QMessageBox.warning(self, 'Warning', f"IP: {ip} User: {user} Password: {password} Auth Protocol: {authProtocol} Privacy Protocol: {privacyProtocol}")
+
+        if len(errors) > 0:
+            QMessageBox.about(self, 'Error', '. '.join(errors))
+            return
 
         # cria o agente
         agent = Agent(ip, user, password, authProtocol, privacyProtocol)
+        # inicia a conexão
+        result = self.agent_manager.add_agent(agent)
+
+        if result == False:
+            QMessageBox.about(self, 'Error', f"Error adding agent: {agent.status}")
+            return
+        else:
+            QMessageBox.about(self, 'Success', 'Agent added successfully')
 
         # adiciona o agente na lista
         self.agents.append(agent)
 
         # salva os agentes
-        self.saveAgents()
+        # self.saveAgents()
 
         # adiciona o agente na tabela
         self.addAgentToTable(agent)
 
-        self.txtIp.clear()
-        self.txtUser.clear()
-        self.txtPassword.clear()
-        self.cbAuthProtocol.setCurrentIndex(0)
-        self.cbPrivacyProtocol.setCurrentIndex(0)
+        # self.txtIp.clear()
+        # self.txtUser.clear()
+        # self.txtPassword.clear()
+        # self.cbAuthProtocol.setCurrentIndex(0)
+        # self.cbPrivacyProtocol.setCurrentIndex(0)
 
 
 if __name__ == '__main__':
