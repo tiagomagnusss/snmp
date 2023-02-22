@@ -3,10 +3,10 @@ import time
 import numpy as np
 
 class SNMPMonitor:
-    def __init__(self, hostname, security_level, security_username, privacy_password, auth_protocol, auth_password, privacy_protocol, version):
+    def __init__(self, quota, hostname, security_level, security_username, privacy_password, auth_protocol, auth_password, privacy_protocol, version):
         self.session = easysnmp.Session(hostname=hostname, security_level=security_level, security_username=security_username, privacy_password=privacy_password, auth_protocol=auth_protocol, auth_password=auth_password, privacy_protocol=privacy_protocol, version=version)
         self.oid = 'IF-MIB::ifInOctets.1'
-        self.quota = (2**16)-1
+        self.quota = quota
         self.alerts = np.empty(shape=[0, 2])
 
     def get_bytes_count(self):
@@ -44,8 +44,11 @@ if __name__ == '__main__':
     privacy_protocol = 'DES'
     privacy_password = 'des1234567'
 
+    # Quota estabelecida
+    quota = (2**16)-1
+
     # Cria uma instância do monitor SNMP
-    monitor = SNMPMonitor(hostname, security_level, security_username, privacy_password, auth_protocol, auth_password, privacy_protocol, version=3)
+    monitor = SNMPMonitor(quota, hostname, security_level, security_username, privacy_password, auth_protocol, auth_password, privacy_protocol, version=3)
 
     while True:
         monitor.monitor_quota()
