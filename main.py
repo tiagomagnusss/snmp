@@ -1,5 +1,5 @@
 from PyQt5.QtWidgets import QMainWindow, QApplication, QWidget, QMessageBox, QComboBox, QRadioButton, QLabel, QAction, QFormLayout, QHBoxLayout, QVBoxLayout, QTableWidget, QTableView, QTableWidgetItem, QPushButton, QLineEdit
-from PyQt5.QtCore import pyqtSlot, Qt, QRegExp
+from PyQt5.QtCore import pyqtSlot, Qt, QRegExp, QTimer
 from PyQt5.QtGui import QPalette, QIcon, QColor, QRegExpValidator
 
 from agent import Agent
@@ -29,8 +29,9 @@ class mainGUI(QWidget):
         self.width = 1280
         self.height = 700
         self.agent_manager = AgentManager()
-        self.defaultHeaders = ['IP', 'User', 'Auth Protocol', 'Privacy Protocol', 'Status']
+        self.defaultHeaders = ['Status', 'IP', 'User', 'Auth Protocol', 'Privacy Protocol']
         self.headerCount = len(self.defaultHeaders)
+        self.refreshRate = 5000
         # self.root = root
         # self.courses = courses
         # self.periods = periods
@@ -41,9 +42,9 @@ class mainGUI(QWidget):
         self.setWindowTitle(self.title)
         self.setGeometry(self.left, self.top, self.width, self.height)
         self.vbLayout = QVBoxLayout()
+
         self.createAddressBar()
         self.createView()
-        # self.createView()
 
         # Define o layout da tela
         self.setLayout(self.vbLayout)
@@ -55,6 +56,8 @@ class mainGUI(QWidget):
         """ Cria o hbox superior da tela """
         self.hbAddress = QHBoxLayout()
 
+        self.createInterval(self.hbAddress)
+
         # ip with a mask
         ipRange = "(?:[0-1]?[0-9]?[0-9]|2[0-4][0-9]|25[0-5])"
         ipRegex = QRegExp("^" + ipRange + "\\." + ipRange + "\\." + ipRange + "\\." + ipRange + "$")
@@ -64,15 +67,15 @@ class mainGUI(QWidget):
         self.txtIp.setValidator(ipValidator)
 
         self.txtUser = QLineEdit(self, placeholderText='Username')
-        self.txtPassword = QLineEdit(self)
+        self.txtPassword = QLineEdit(self, placeholderText='Password')
 
         self.cbAuthProtocol = QComboBox(self)
-        self.cbAuthProtocol.setEditable(True)
+        self.cbAuthProtocol.setEditable(False)
         self.cbAuthProtocol.setAutoFillBackground(True)
         self.cbAuthProtocol.addItems(['MD5', 'SHA'])
 
         self.cbPrivacyProtocol = QComboBox(self)
-        self.cbPrivacyProtocol.setEditable(True)
+        self.cbPrivacyProtocol.setEditable(False)
         self.cbPrivacyProtocol.setAutoFillBackground(True)
         self.cbPrivacyProtocol.addItems(['None', 'DES', 'AES'])
 
@@ -95,15 +98,39 @@ class mainGUI(QWidget):
         # coloca na tela
         self.vbLayout.addLayout(self.hbAddress)
 
+    def createInterval(self, hbAddress):
+        self.hbInterval = QHBoxLayout()
+
+        self.lblRate = QLabel('Interval (seconds): ')
+        self.cbRate = QComboBox(self)
+        self.cbRate.setEditable(True)
+        self.cbRate.setAutoFillBackground(True)
+        self.cbRate.addItems(['1', '2', '5', '10', '20', '50'])
+        self.cbRate.setCurrentIndex(2)
+        self.cbRate.setEditable(False)
+        self.cbRate.currentTextChanged.connect(self.on_interval_changed)
+
+        self.hbInterval.addWidget(self.lblRate)
+        self.hbInterval.addWidget(self.cbRate)
+
+        hbAddress.addLayout(self.hbInterval)
+        hbAddress.addWidget(QLabel(''))
+        hbAddress.addWidget(QLabel(''))
+        hbAddress.addWidget(QLabel(''))
+
     def createView(self):
         """ Cria a tabela de agentes """
         # cria a tabela
         self.tblAgents = QTableWidget(self)
         self.tblAgents.setRowCount(0)
+        self.tblAgents.setSelectionBehavior(QTableView.SelectRows)
+        self.tblAgents.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.tblAgents.setAlternatingRowColors(True)
 
         self.headerCount += len(UDP.headers) + len(TCP.headers) + 1
         self.tblAgents.setColumnCount(self.headerCount)
         self.tblAgents.setHorizontalHeaderLabels(self.defaultHeaders + UDP.headers + TCP.headers + ['Actions'])
+        self.tblAgents.resizeColumnsToContents()
 
         # carrega os agentes
         self.agents = self.loadAgents()
@@ -114,6 +141,10 @@ class mainGUI(QWidget):
 
         # coloca na tela
         self.vbLayout.addWidget(self.tblAgents)
+
+        self.timer = QTimer()
+        self.timer.setInterval(3000)
+        self.timer.timeout.connect(self.on_timer)
 
     def loadAgents(self):
         """ Carrega os agentes salvos """
@@ -130,6 +161,35 @@ class mainGUI(QWidget):
         with open('agents.pickle', 'wb') as handle:
             pickle.dump(self.agents, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
+    def updateTable(self):
+        """ Atualiza a tabela de agentes """
+        # atualiza os agentes
+        for rowPosition, agent in enumerate(self.agents):
+            agentData = self.agent_manager.data[agent.ip]
+
+            if agentData is None or agentData == {}:
+                self.tblAgents.setItem(rowPosition, 0, QTableWidgetItem(agent.status))
+                continue
+
+            tcpData = agentData['tcp']
+            udpData = agentData['udp']
+
+            self.tblAgents.setItem(rowPosition, 0, QTableWidgetItem(agent.status))
+            self.tblAgents.setItem(rowPosition, 1, QTableWidgetItem(agent.ip))
+            self.tblAgents.setItem(rowPosition, 2, QTableWidgetItem(agent.user))
+            self.tblAgents.setItem(rowPosition, 3, QTableWidgetItem(agent.authProtocol))
+            self.tblAgents.setItem(rowPosition, 4, QTableWidgetItem(agent.privacyProtocol))
+
+            # adiciona os dados do udp
+            for index, item in enumerate(UDP.tags):
+                self.tblAgents.setItem(rowPosition, index + 5, QTableWidgetItem(udpData[item]))
+
+            # adiciona os dados do tcp
+            for index, item in enumerate(TCP.tags):
+                self.tblAgents.setItem(rowPosition, index + 8, QTableWidgetItem(tcpData[item]))
+
+        self.tblAgents.resizeColumnsToContents()
+
     def addAgentToTable(self, agent):
         """ Adiciona um agente na tabela """
         # pega o numero de linhas
@@ -142,11 +202,11 @@ class mainGUI(QWidget):
         udpData = agentData['udp']
 
         # adiciona os dados
-        self.tblAgents.setItem(rowPosition, 0, QTableWidgetItem(agent.ip))
-        self.tblAgents.setItem(rowPosition, 1, QTableWidgetItem(agent.user))
-        self.tblAgents.setItem(rowPosition, 2, QTableWidgetItem(agent.authProtocol))
-        self.tblAgents.setItem(rowPosition, 3, QTableWidgetItem(agent.privacyProtocol))
-        self.tblAgents.setItem(rowPosition, 4, QTableWidgetItem(agent.status))
+        self.tblAgents.setItem(rowPosition, 0, QTableWidgetItem(agent.status))
+        self.tblAgents.setItem(rowPosition, 1, QTableWidgetItem(agent.ip))
+        self.tblAgents.setItem(rowPosition, 2, QTableWidgetItem(agent.user))
+        self.tblAgents.setItem(rowPosition, 3, QTableWidgetItem(agent.authProtocol))
+        self.tblAgents.setItem(rowPosition, 4, QTableWidgetItem(agent.privacyProtocol))
 
         # adiciona os dados do udp
         for index, item in enumerate(UDP.tags):
@@ -160,6 +220,21 @@ class mainGUI(QWidget):
         btnRemove = QPushButton('Remove', self)
         btnRemove.clicked.connect(self.on_remove)
         self.tblAgents.setCellWidget(rowPosition, self.headerCount - 1, btnRemove)
+        self.tblAgents.resizeColumnsToContents()
+
+        if not self.timer.isActive():
+            self.timer.start()
+
+    @pyqtSlot()
+    def on_interval_changed(self):
+        """ Altera o intervalo de atualizacao """
+        self.timer.setInterval(int(self.cbRate.currentText()) * 1000)
+
+    @pyqtSlot()
+    def on_timer(self):
+        """ Atualiza os dados dos agentes """
+        self.agent_manager.update_data()
+        self.updateTable()
 
     @pyqtSlot()
     def on_remove(self):
@@ -181,6 +256,9 @@ class mainGUI(QWidget):
         # remove a linha da tabela
         self.tblAgents.removeRow(row)
 
+        if len(self.agents) == 0:
+            self.timer.stop()
+
     @pyqtSlot()
     def on_add(self):
         """ Adiciona um agente """
@@ -198,11 +276,11 @@ class mainGUI(QWidget):
         elif user == '':
             errors.append('User is required')
         elif privacyProtocol != 'None' and password == '':
-            errors.append('Password is required if privacy protocol is not None')
+            errors.append('Password is required if privacy protocol is set')
 
 
         if len(errors) > 0:
-            QMessageBox.about(self, 'Error', '. '.join(errors))
+            QMessageBox.warning(self, 'Error', '. '.join(errors))
             return
 
         # cria o agente
@@ -211,10 +289,10 @@ class mainGUI(QWidget):
         result = self.agent_manager.add_agent(agent)
 
         if result == False:
-            QMessageBox.about(self, 'Error', f"Error adding agent: {agent.status}")
+            QMessageBox.critical(self, 'Error', f"Error adding agent: {agent.status}")
             return
         else:
-            QMessageBox.about(self, 'Success', 'Agent added successfully')
+            QMessageBox.information(self, 'Success', 'Agent added successfully')
 
         # adiciona o agente na lista
         self.agents.append(agent)
@@ -225,17 +303,10 @@ class mainGUI(QWidget):
         # adiciona o agente na tabela
         self.addAgentToTable(agent)
 
-        # self.txtIp.clear()
-        # self.txtUser.clear()
-        # self.txtPassword.clear()
-        # self.cbAuthProtocol.setCurrentIndex(0)
-        # self.cbPrivacyProtocol.setCurrentIndex(0)
-
-
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     palette = QPalette()
-    palette.setColor(QPalette.Background, QColor(110, 110, 110, 230))
+    palette.setColor(QPalette.Background, QColor(230, 230, 230, 140))
     app.setPalette(palette)
 
     ex = mainGUI()
