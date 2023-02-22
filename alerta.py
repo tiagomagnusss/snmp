@@ -52,4 +52,6 @@ if __name__ == '__main__':
 
     while True:
         monitor.monitor_quota()
+        # printa o np de alertas.
+        print(monitor.alerts)
         time.sleep(10)  # Intervalo de 10 segundos entre as consultas SNMP
