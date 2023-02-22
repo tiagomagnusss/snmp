@@ -33,6 +33,9 @@ class SNMPMonitor:
         else:
             print(f'Valor de contagem de bytes dentro da quota permitida. Valor atual: {bytes_count}')
 
+def teste():
+    return
+
 
 if __name__ == '__main__':
     # Configurações do dispositivo SNMPv3
