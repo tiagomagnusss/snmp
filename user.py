@@ -16,6 +16,9 @@ class User:
             privacy_protocol=privacy_protocol, 
             version=3
             )
+        
+        self.tag_dic = { 'udpInDatagrams': 0, 'udpOutDatagrams': 1, 'udpInErrors': 2, 'tcpActiveOpens': 3, 'tcpAttemptFails': 4,
+                           'tcpCurrEstab': 5, 'tcpInErrs': 6, 'tcpInSegs': 7, 'tcpOutSegs': 8, 'tcpRetransSegs':  9}
 
         self.tags = [ 'udpInDatagrams', 'udpOutDatagrams', 'udpInErrors', 'tcpActiveOpens', 'tcpAttemptFails',
                       'tcpCurrEstab', 'tcpInErrs', 'tcpInSegs', 'tcpOutSegs', 'tcpRetransSegs' ]
@@ -24,8 +27,18 @@ class User:
 
         for i in range(len(self.tags)):
             self.data.append([])
-    
+
+    #busca todos os dados brutos
     def updateData(self, non_repeaters: int = 0, max_repetitions: int = 1):
         data = self.session.get_bulk(self.tags, non_repeaters, max_repetitions)
-        for i in range(len(self.tags)):
-            self.data[i].append({ 'tag': self.tags[i], 'time_stamp' : time.time(), 'data': data[i].value})
+        for i in range(len(self.tags)):            
+            self.data[i].append({ 'tag': self.tags[i], 'time_stamp' : time.time(), 'data': int(data[i].value)})
+    
+    def getTaxa(self, tag):
+        lst = self.data[self.tag_dic[tag]]
+        if(len(lst) > 1):
+            print('taxa ',lst[len(lst)-1]['tag'], ': ', lst[len(lst)-1]['data'] - lst[len(lst)-2]['data'])
+        else:
+            print('0')
+        
+
