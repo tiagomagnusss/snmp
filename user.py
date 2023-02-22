@@ -40,5 +40,34 @@ class User:
             print('taxa ',lst[len(lst)-1]['tag'], ': ', lst[len(lst)-1]['data'] - lst[len(lst)-2]['data'])
         else:
             print('0')
+    
+    def getDataInTime(self, time_start, time_end, tag):
+        lst = self.data[self.tag_dic[tag]]
+
+        if(len(lst) < 2):
+            print('Quantidade insuficiente de dados')
+            return 0
+
+        if(time_end < lst[0]['time_stamp']):
+            print('fora do intervalo')
+            return 0
         
+        if(time_start > lst[len(lst)-1]['time_stamp']):
+            print('fora do intervalo')
+            return 0
+        
+        i = 0
+
+        while(time_start > lst[i]['time_stamp']):
+            i += 1
+        dataStart = lst[i]['data']
+
+        i = len(lst) - 1
+        while(time_end < lst[i]['time_stamp']):
+            i -= 1
+        dataEnd = lst[i]['data']
+                
+        print('--------------------\ndata: \n',dataStart,'\n', dataEnd,'\n--------------------')
+        print(dataEnd-dataStart)
+        pass       
 
