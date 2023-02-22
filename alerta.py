@@ -1,49 +1,52 @@
-import tkinter as tk
-from tkinter import messagebox
 import easysnmp
+import time
+import numpy as np
 
-def coletar_dados(endereco_ip, usuario_snmp):
-    # Realizar consulta SNMP para obter informações de contabilização
-    try:
-        session = easysnmp.Session(hostname=endereco_ip, security_level="auth_with_privacy", security_username=usuario_snmp, privacy_password='des1234567', auth_protocol='MD5', auth_password='md51234567', privacy_protocol='DES', version=3)
-        contabilizacao = session.get('sysUpTime.0')
-    except Exception as e:
-        messagebox.showerror("Erro", f"Ocorreu um erro ao obter dados de contabilização de {endereco_ip} para o usuário {usuario_snmp}: {str(e)}")
-        return contabilizacao
+class SNMPMonitor:
+    def __init__(self, hostname, security_level, security_username, privacy_password, auth_protocol, auth_password, privacy_protocol, version):
+        self.session = easysnmp.Session(hostname=hostname, security_level=security_level, security_username=security_username, privacy_password=privacy_password, auth_protocol=auth_protocol, auth_password=auth_password, privacy_protocol=privacy_protocol, version=version)
+        self.oid = 'IF-MIB::ifInOctets.1'
+        self.quota = (2**16)-1
+        self.alerts = np.empty(shape=[0, 2])
 
-    return contabilizacao
+    def get_bytes_count(self):
+        response = self.session.get(self.oid)
+        return int(response.value)
 
-def analisar_dados(endereco_ip, usuario_snmp):
-    dados = coletar_dados(endereco_ip, usuario_snmp['nome'])
-    if int(dados.value) > 10000000:
-        messagebox.showwarning("Alerta", f"Foi detectado um evento anômalo na contabilização de {endereco_ip} para o usuário {usuario_snmp['nome']}")
-    else:
-        messagebox.showinfo("Informação", f"Não foram encontrados eventos anômalos na contabilização de {endereco_ip} para o usuário {usuario_snmp['nome']}")
+    def check_quota(self, bytes_count):
+        if bytes_count > self.quota:
+            return True
+        return False
 
+    def log_alert(self, bytes_count):
+        timestamp = int(time.time())
+        alert = np.array([[bytes_count, timestamp]])
+        self.alerts = np.append(self.alerts, alert, axis=0)
 
+    def monitor_quota(self):
+        bytes_count = self.get_bytes_count()
 
-def verificar_eventos():
-    # Lista de endereços IP ou nomes de host dos dispositivos a serem verificados
-    dispositivos = ['localhost']
+        if self.check_quota(bytes_count):
+            self.log_alert(bytes_count)
+            print(f'Valor de contagem de bytes excedeu a quota permitida. Valor atual: {bytes_count}, {int(self.alerts[-1,1])}')
 
-    for dispositivo in dispositivos:
-        for usuario_snmp in usuarios_snmp:
-            analisar_dados(dispositivo, usuario_snmp)
+        else:
+            print(f'Valor de contagem de bytes dentro da quota permitida. Valor atual: {bytes_count}')
 
 
 if __name__ == '__main__':
-    
-    usuarios_snmp = [
-        {'nome': 'MD5DESUser', 'auth_protocol': 'MD5', 'auth_password': 'md51234567', 'privacy_protocol': 'DES', 'privacy_password': 'des1234567'},
-    ]
+    # Configurações do dispositivo SNMPv3
+    hostname = 'localhost'
+    security_level = 'auth_with_privacy'
+    security_username = 'MD5DESUser'
+    auth_protocol = 'MD5'
+    auth_password = 'md51234567'
+    privacy_protocol = 'DES'
+    privacy_password = 'des1234567'
 
-    # Criar interface gráfica com tkinter
-    root = tk.Tk()
-    root.title("Ferramenta de Contabilização")
+    # Cria uma instância do monitor SNMP
+    monitor = SNMPMonitor(hostname, security_level, security_username, privacy_password, auth_protocol, auth_password, privacy_protocol, version=3)
 
-    # Adicionar botão para verificar eventos anômalos
-    verificar_button = tk.Button(root, text="Verificar Eventos Anômalos", command=verificar_eventos)
-    verificar_button.pack()
-
-    # Iniciar o loop principal da interface gráfica
-    root.mainloop()
+    while True:
+        monitor.monitor_quota()
+        time.sleep(10)  # Intervalo de 10 segundos entre as consultas SNMP
