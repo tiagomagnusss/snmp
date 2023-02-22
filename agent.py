@@ -26,6 +26,11 @@ class Agent():
         try:
             data['tcp'] = self.tcp.get_data()
             data['udp'] = self.udp.get_data()
+
+            if session.error_string != '' and data['tcp'] == {} and data['udp'] == {}:
+                self.status = session.error_string
+            else:
+                self.status = 'Connected'
         except Exception as e:
             self.status = str(e)
 
