@@ -14,6 +14,15 @@ class Agent():
         self.tcp = None
         self.udp = None
 
+    def __dict__(self):
+        return {
+            'ip': self.ip,
+            'user': self.user,
+            'password': self.password,
+            'authProtocol': self.authProtocol,
+            'privacyProtocol': self.privacyProtocol
+        }
+
     # gets udp and tcp data
     def get_data(self, session):
         if ( self.tcp is None ):

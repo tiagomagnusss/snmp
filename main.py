@@ -7,6 +7,7 @@ from agent_manager import AgentManager
 from tcp import TCP
 from udp import UDP
 
+from datetime import datetime
 import pickle
 import sys
 import os
@@ -20,6 +21,8 @@ class NumericTableWidgetItem(QTableWidgetItem):
         return int(self.__number) < int(other.__number)
 
 class mainGUI(QWidget):
+    status = "STATUS: "
+
     def __init__(self):
         super().__init__()
         # self.setWindowIcon(QIcon(os.path.dirname(__file__) + "/" + "randomico.ico"))
@@ -28,14 +31,12 @@ class mainGUI(QWidget):
         self.top = 0
         self.width = 1280
         self.height = 700
+        self.agents = []
         self.agent_manager = AgentManager()
         self.defaultHeaders = ['Status', 'IP', 'User', 'Auth Protocol', 'Privacy Protocol']
         self.headerCount = len(self.defaultHeaders)
-        self.refreshRate = 5000
-        # self.root = root
-        # self.courses = courses
-        # self.periods = periods
-        # self.filtered = []
+        self.statusBar = QLabel(f"{mainGUI.status} Ready")
+
         self.initUI()
 
     def initUI(self):
@@ -45,6 +46,8 @@ class mainGUI(QWidget):
 
         self.createAddressBar()
         self.createView()
+        self.createStatusBar()
+        self.createSaveLoadButtons()
 
         # Define o layout da tela
         self.setLayout(self.vbLayout)
@@ -132,34 +135,67 @@ class mainGUI(QWidget):
         self.tblAgents.setHorizontalHeaderLabels(self.defaultHeaders + UDP.headers + TCP.headers + ['Actions'])
         self.tblAgents.resizeColumnsToContents()
 
-        # carrega os agentes
-        self.agents = self.loadAgents()
-
-        # adiciona os agentes na tabela
-        for agent in self.agents:
-            self.addAgentToTable(agent)
-
         # coloca na tela
         self.vbLayout.addWidget(self.tblAgents)
 
         self.timer = QTimer()
-        self.timer.setInterval(3000)
+        self.timer.setInterval(5000)
         self.timer.timeout.connect(self.on_timer)
+
+        # carrega os agentes
+        self.loadAgents()
+
+        # adiciona os agentes na tabela
+        # for agent in self.agents:
+        #     self.addAgentToTable(agent)
+
+    def createStatusBar(self):
+        """ Cria a barra de status """
+        # texto de log no fim da tela
+        self.vbLayout.addWidget(self.statusBar)
+
+    def createSaveLoadButtons(self):
+        """ Cria os botões de salvar e carregar """
+        self.hbSaveLoad = QHBoxLayout()
+
+        self.btnSave = QPushButton('Save', self)
+        self.btnSave.clicked.connect(self.on_save)
+
+        self.btnLoad = QPushButton('Load', self)
+        self.btnLoad.clicked.connect(self.on_load)
+
+        self.hbSaveLoad.addWidget(self.btnSave)
+        self.hbSaveLoad.addWidget(self.btnLoad)
+
+        self.vbLayout.addLayout(self.hbSaveLoad)
+
+    def setStatus(self, status):
+        """ Atualiza o texto de status """
+        self.statusBar.setText(f"{mainGUI.status} {status}")
 
     def loadAgents(self):
         """ Carrega os agentes salvos """
-        return []
         try:
             with open('agents.pickle', 'rb') as handle:
-                return pickle.load(handle)
-        except:
+                agent_details = pickle.load(handle)
+                for agent_detail in agent_details:
+                    agent = Agent(**agent_detail)
+                    self.on_add(agent)
+        except Exception as e:
+            self.setStatus(f"Error while loading agents. {str(e)}")
             return []
 
     def saveAgents(self):
         """ Salva os agentes """
-        return
-        with open('agents.pickle', 'wb') as handle:
-            pickle.dump(self.agents, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        try:
+            with open('agents.pickle', 'wb') as handle:
+                agent_details = []
+                for agent in self.agents:
+                    agent_details.append(agent.__dict__())
+
+                pickle.dump(agent_details, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        except Exception as e:
+            self.setStatus(f"Error while saving agents. {str(e)}")
 
     def updateTable(self):
         """ Atualiza a tabela de agentes """
@@ -169,6 +205,7 @@ class mainGUI(QWidget):
 
             if agentData is None or agentData == {}:
                 self.tblAgents.setItem(rowPosition, 0, QTableWidgetItem(agent.status))
+                self.setStatus(f"Error while fetching data for agent {agent.ip}")
                 continue
 
             tcpData = agentData['tcp']
@@ -189,6 +226,8 @@ class mainGUI(QWidget):
                 self.tblAgents.setItem(rowPosition, index + 8, QTableWidgetItem(tcpData[item]))
 
         self.tblAgents.resizeColumnsToContents()
+        tick = datetime.now().strftime('%H:%M:%S')
+        self.setStatus(f"Updated {len(self.agents)} agents at {tick}")
 
     def addAgentToTable(self, agent):
         """ Adiciona um agente na tabela """
@@ -229,6 +268,7 @@ class mainGUI(QWidget):
     def on_interval_changed(self):
         """ Altera o intervalo de atualizacao """
         self.timer.setInterval(int(self.cbRate.currentText()) * 1000)
+        self.setStatus(f"Interval changed to {self.cbRate.currentText()} seconds")
 
     @pyqtSlot()
     def on_timer(self):
@@ -245,6 +285,7 @@ class mainGUI(QWidget):
         # get row of button
         row = self.tblAgents.indexAt(button.pos()).row()
 
+        ip = self.tblAgents.item(row, 1).text()
         self.agent_manager.remove_agent(self.agents[row])
 
         # remove o agente da lista
@@ -259,15 +300,23 @@ class mainGUI(QWidget):
         if len(self.agents) == 0:
             self.timer.stop()
 
+        self.setStatus(f"Removed agent {ip}")
+
     @pyqtSlot()
-    def on_add(self):
+    def on_add(self, new_agent = None):
         """ Adiciona um agente """
-        # pega os dados do agente
-        ip = self.txtIp.text()
-        user = self.txtUser.text()
-        password = self.txtPassword.text()
-        authProtocol = self.cbAuthProtocol.currentText()
-        privacyProtocol = self.cbPrivacyProtocol.currentText()
+        if new_agent is None:
+            ip = self.txtIp.text()
+            user = self.txtUser.text()
+            password = self.txtPassword.text()
+            authProtocol = self.cbAuthProtocol.currentText()
+            privacyProtocol = self.cbPrivacyProtocol.currentText()
+        else:
+            ip = new_agent.ip
+            user = new_agent.user
+            password = new_agent.password
+            authProtocol = new_agent.authProtocol
+            privacyProtocol = new_agent.privacyProtocol
 
         errors = []
         # verifica se os campos estao vazios
@@ -281,6 +330,7 @@ class mainGUI(QWidget):
 
         if len(errors) > 0:
             QMessageBox.warning(self, 'Error', '. '.join(errors))
+            self.setStatus(f"Error adding agent {ip}. {'. '.join(errors)}")
             return
 
         # cria o agente
@@ -290,18 +340,31 @@ class mainGUI(QWidget):
 
         if result == False:
             QMessageBox.critical(self, 'Error', f"Error adding agent: {agent.status}")
+            self.setStatus(f"Error adding agent {ip}. {agent.status}")
             return
-        else:
+        elif new_agent is None:
             QMessageBox.information(self, 'Success', 'Agent added successfully')
 
         # adiciona o agente na lista
         self.agents.append(agent)
 
         # salva os agentes
-        # self.saveAgents()
+        self.saveAgents()
 
         # adiciona o agente na tabela
         self.addAgentToTable(agent)
+        self.setStatus(f"Agent {agent.ip} added successfully")
+
+    @pyqtSlot()
+    def on_save(self):
+        """ Salva os agentes """
+        self.saveAgents()
+        self.setStatus('Agents saved successfully')
+
+    @pyqtSlot()
+    def on_load(self):
+        """ Carrega os agentes """
+        self.loadAgents()
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
