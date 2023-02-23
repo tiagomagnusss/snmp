@@ -1,5 +1,6 @@
 from tcp import TCP
 from udp import UDP
+from quota import QuotaMonitor
 
 # define the agent class
 class Agent():
@@ -13,6 +14,7 @@ class Agent():
 
         self.tcp = None
         self.udp = None
+        self.quota = None
 
     def __dict__(self):
         return {
@@ -31,12 +33,17 @@ class Agent():
         if ( self.udp is None ):
             self.udp = UDP(session)
 
+        if ( self.quota is None ):
+            self.quota = QuotaMonitor(session)
+
         data = {}
         try:
             data['tcp'] = self.tcp.get_data()
             data['udp'] = self.udp.get_data()
+            data['quota'] = self.quota.get_data()
 
-            if session.error_string != '' and data['tcp'] == {} and data['udp'] == {}:
+
+            if session.error_string != '' and data['tcp'] == {} and data['udp'] == {} and data['quota'] == {}:
                 self.status = session.error_string
             else:
                 self.status = 'Connected'

@@ -6,7 +6,7 @@ from agent import Agent
 from agent_manager import AgentManager
 from tcp import TCP
 from udp import UDP
-
+from quota import QuotaMonitor
 from datetime import datetime
 import pickle
 import sys
@@ -130,9 +130,9 @@ class mainGUI(QWidget):
         self.tblAgents.setEditTriggers(QTableWidget.NoEditTriggers)
         self.tblAgents.setAlternatingRowColors(True)
 
-        self.headerCount += len(UDP.headers) + len(TCP.headers) + 1
+        self.headerCount += len(UDP.headers) + len(TCP.headers) + len(QuotaMonitor.headers) + 1
         self.tblAgents.setColumnCount(self.headerCount)
-        self.tblAgents.setHorizontalHeaderLabels(self.defaultHeaders + UDP.headers + TCP.headers + ['Actions'])
+        self.tblAgents.setHorizontalHeaderLabels(self.defaultHeaders + UDP.headers + TCP.headers + QuotaMonitor.headers + ['Actions'])
         self.tblAgents.resizeColumnsToContents()
 
         # coloca na tela
@@ -210,6 +210,7 @@ class mainGUI(QWidget):
 
             tcpData = agentData['tcp']
             udpData = agentData['udp']
+            quotaData = agentData['quota']
 
             self.tblAgents.setItem(rowPosition, 0, QTableWidgetItem(agent.status))
             self.tblAgents.setItem(rowPosition, 1, QTableWidgetItem(agent.ip))
@@ -224,6 +225,15 @@ class mainGUI(QWidget):
             # adiciona os dados do tcp
             for index, item in enumerate(TCP.tags):
                 self.tblAgents.setItem(rowPosition, index + 8, QTableWidgetItem(tcpData[item]))
+            
+            # adiciona os dados de quota
+            for index, item in enumerate(QuotaMonitor.tags):
+                self.tblAgents.setItem(rowPosition, index + 15, QTableWidgetItem(quotaData[item]))
+                if int(quotaData[item]) > (2**32):
+                    exceeded_quota = int(quotaData[item]) - (2**32)
+                else:
+                    exceeded_quota = 0            
+                self.tblAgents.setItem(rowPosition, 16, QTableWidgetItem(str(exceeded_quota)))
 
         self.tblAgents.resizeColumnsToContents()
         tick = datetime.now().strftime('%H:%M:%S')
@@ -239,6 +249,7 @@ class mainGUI(QWidget):
         agentData = self.agent_manager.data[agent.ip]
         tcpData = agentData['tcp']
         udpData = agentData['udp']
+        quotaData = agentData['quota']
 
         # adiciona os dados
         self.tblAgents.setItem(rowPosition, 0, QTableWidgetItem(agent.status))
@@ -254,6 +265,15 @@ class mainGUI(QWidget):
         # adiciona os dados do tcp
         for index, item in enumerate(TCP.tags):
             self.tblAgents.setItem(rowPosition, index + 8, QTableWidgetItem(tcpData[item]))
+        
+        # adiciona os dados de quota
+        for index, item in enumerate(QuotaMonitor.tags):
+            self.tblAgents.setItem(rowPosition, index + 15, QTableWidgetItem(quotaData[item]))
+            if int(quotaData[item]) > (2**32):
+                exceeded_quota = int(quotaData[item]) - (2**32)
+            else:
+                exceeded_quota = 0            
+            self.tblAgents.setItem(rowPosition, 16, QTableWidgetItem(str(exceeded_quota)))
 
         # adiciona o botao de remover
         btnRemove = QPushButton('Remove', self)

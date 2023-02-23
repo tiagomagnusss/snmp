@@ -18,10 +18,10 @@ class User:
             )
         
         self.tag_dic = { 'udpInDatagrams': 0, 'udpOutDatagrams': 1, 'udpInErrors': 2, 'tcpActiveOpens': 3, 'tcpAttemptFails': 4,
-                           'tcpCurrEstab': 5, 'tcpInErrs': 6, 'tcpInSegs': 7, 'tcpOutSegs': 8, 'tcpRetransSegs':  9}
+                           'tcpCurrEstab': 5, 'tcpInErrs': 6, 'tcpInSegs': 7, 'tcpOutSegs': 8, 'tcpRetransSegs':  9, 'ifInOctets': 10}
 
         self.tags = [ 'udpInDatagrams', 'udpOutDatagrams', 'udpInErrors', 'tcpActiveOpens', 'tcpAttemptFails',
-                      'tcpCurrEstab', 'tcpInErrs', 'tcpInSegs', 'tcpOutSegs', 'tcpRetransSegs' ]
+                      'tcpCurrEstab', 'tcpInErrs', 'tcpInSegs', 'tcpOutSegs', 'tcpRetransSegs', 'ifInOctets']
 
         self.data = []
 
