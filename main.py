@@ -1,5 +1,5 @@
-from PyQt5.QtWidgets import QMainWindow, QApplication, QWidget, QMessageBox, QComboBox, QRadioButton, QLabel, QAction, QFormLayout, QHBoxLayout, QVBoxLayout, QTableWidget, QTableView, QTableWidgetItem, QPushButton, QLineEdit
-from PyQt5.QtCore import pyqtSlot, Qt, QRegExp, QTimer
+from PyQt5.QtWidgets import QApplication, QWidget, QMessageBox, QComboBox, QLabel, QHBoxLayout, QVBoxLayout, QTableWidget, QTableView, QTableWidgetItem, QPushButton, QLineEdit
+from PyQt5.QtCore import pyqtSlot, QRegExp, QTimer
 from PyQt5.QtGui import QPalette, QIcon, QColor, QRegExpValidator, QIntValidator
 
 from agent import Agent
@@ -7,19 +7,11 @@ from agent_manager import AgentManager
 from tcp import TCP
 from udp import UDP
 from quota import QuotaMonitor
+from stats_window import StatsWindow
 from datetime import datetime
 import pickle
 import sys
-import os
 
-
-class NumericTableWidgetItem(QTableWidgetItem):
-    def __init__(self, number):
-        QTableWidgetItem.__init__(self, number, QTableWidgetItem.UserType)
-        self.__number = number
-
-    def __lt__(self, other):
-        return int(self.__number) < int(other.__number)
 
 class mainGUI(QWidget):
     status = "STATUS: "
@@ -38,7 +30,7 @@ class mainGUI(QWidget):
         self.headerCount = len(self.defaultHeaders)
         self.statusBar = QLabel(f"{mainGUI.status} Ready")
         self.quota_user = 0
-
+        self.stats = StatsWindow(self)
 
         self.initUI()
 
@@ -148,7 +140,7 @@ class mainGUI(QWidget):
 
         self.headerCount += len(UDP.headers) + len(TCP.headers) + len(QuotaMonitor.headers) + 2
         self.tblAgents.setColumnCount(self.headerCount)
-        self.tblAgents.setHorizontalHeaderLabels(self.defaultHeaders + UDP.headers + TCP.headers + QuotaMonitor.headers + ['Analise', 'Actions'])
+        self.tblAgents.setHorizontalHeaderLabels(self.defaultHeaders + UDP.headers + TCP.headers + QuotaMonitor.headers + ['Analyze', 'Actions'])
         self.tblAgents.resizeColumnsToContents()
 
         # coloca na tela
@@ -160,10 +152,6 @@ class mainGUI(QWidget):
 
         # carrega os agentes
         self.loadAgents()
-
-        # adiciona os agentes na tabela
-        # for agent in self.agents:
-        #     self.addAgentToTable(agent)
 
     def createStatusBar(self):
         """ Cria a barra de status """
@@ -299,85 +287,19 @@ class mainGUI(QWidget):
                 cellExceeded = QTableWidgetItem(str(exceeded_quota))
             self.tblAgents.setItem(rowPosition, 16, cellExceeded)
 
-        NewWindow = QMainWindow()
-        NewWindow.setWindowTitle("New window")
-        NewWindow.setGeometry(200, 100, 600, 600)
-
-        label_nw_time_start = QLabel(NewWindow)
-        label_nw_time_start.setText('inicio:')
-        label_nw_time_start.setGeometry(20,20,200,30)
-
-        line=QLineEdit(NewWindow)
-        line.setGeometry(70, 20,200,30)
-
-        label_nw_label_nw_time_end = QLabel(NewWindow)
-        label_nw_label_nw_time_end.setText('fim:')
-        label_nw_label_nw_time_end.setGeometry(300,20,200,30)
-
-        line2=QLineEdit(NewWindow)
-        line2.setGeometry(350, 20,200,30)        
-
-        label_udpin = QLabel(NewWindow)
-        label_udpin.setText('udpin:')
-        label_udpin.setGeometry(30,250,200,30)
-
-        label_udpin.value = QLabel(NewWindow)
-        label_udpin.value.setText('')
-        label_udpin.value.setGeometry(30,280,200,30)
-
-        label_udpout = QLabel(NewWindow)
-        label_udpout.setText('udpout:')
-        label_udpout.setGeometry(180,250,200,30)
-
-        label_udpout.value = QLabel(NewWindow)
-        label_udpout.value.setText('')
-        label_udpout.value.setGeometry(180,280,200,30)
-
-        label_tcpin = QLabel(NewWindow)
-        label_tcpin.setText('tcpin:')
-        label_tcpin.setGeometry(330,250,200,30)
-
-        label_tcpin.value = QLabel(NewWindow)
-        label_tcpin.value.setText('')
-        label_tcpin.value.setGeometry(330,280,200,30)
-
-        label_tecppout = QLabel(NewWindow)
-        label_tecppout.setText('tcpout:')
-        label_tecppout.setGeometry(480,250,200,30)
-
-        label_tecppout.value = QLabel(NewWindow)
-        label_tecppout.value.setText('')
-        label_tecppout.value.setGeometry(480,280,200,30)
-
-        def analisa():
-            # print(line.text())
-            # print(line2.text())
-            #print(datetime.strptime(line.text(), "%d/%m/%Y %H:%M:%S").timestamp())
-            #print(datetime.strptime(line2.text(), "%d/%m/%Y %H:%M:%S").timestamp())
-            #print(TCP.get_data_in_time('tcpInSegs', datetime.strptime(line.text(), "%d/%m/%Y %H:%M:%S").timestamp(), datetime.strptime(line2.text(), "%d/%m/%Y %H:%M:%S").timestamp()))
-            #print(UDP.get_data_in_time())
-            pass
-
-        btnAnalisa = QPushButton(NewWindow)
-        btnAnalisa.setText("Analisa")
-        btnAnalisa.clicked.connect(analisa)
-        btnAnalisa.setGeometry(250,80,120,40)
-
-        def open():
-            NewWindow.show()
-        
-
         # adiciona o botao de analise
-        btnAnalise = QPushButton('Analise', self)
-        btnAnalise.clicked.connect(open)    
-        self.tblAgents.setCellWidget(rowPosition, self.headerCount - 2, btnAnalise)
-        self.tblAgents.resizeColumnsToContents()
+        btnAnalyze = QPushButton('Analyze', self)
+        btnAnalyze.clicked.connect(self.on_analyze)
+        btnAnalyze.setIcon(QIcon.fromTheme("system-search"))
 
         # adiciona o botao de remover
         btnRemove = QPushButton('Remove', self)
         btnRemove.clicked.connect(self.on_remove)
         btnRemove.setIcon(QIcon.fromTheme("edit-delete"))
+
         self.tblAgents.setCellWidget(rowPosition, self.headerCount - 1, btnRemove)
+        self.tblAgents.resizeColumnsToContents()
+        self.tblAgents.setCellWidget(rowPosition, self.headerCount - 2, btnAnalyze)
         self.tblAgents.resizeColumnsToContents()
 
         if not self.timer.isActive():
@@ -425,6 +347,14 @@ class mainGUI(QWidget):
             self.timer.stop()
 
         self.setStatus(f"Removed agent {ip}")
+
+    @pyqtSlot()
+    def on_analyze(self):
+        # open stats window
+        button = self.sender()
+        row = self.tblAgents.indexAt(button.pos()).row()
+        ip = self.tblAgents.item(row, 1).text()
+        self.stats.showFor(ip)
 
     @pyqtSlot()
     def on_add(self, new_agent = None):
