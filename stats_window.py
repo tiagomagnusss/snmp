@@ -1,7 +1,7 @@
-from PyQt5.QtWidgets import QMainWindow, QLabel, QLineEdit
+from PyQt5.QtWidgets import QDialog, QLabel, QLineEdit, QPushButton, QHBoxLayout, QVBoxLayout
 from datetime import datetime
 
-class StatsWindow(QMainWindow):
+class StatsWindow(QDialog):
     def __init__(self, parent):
         super().__init__()
         self.main = parent
@@ -12,46 +12,54 @@ class StatsWindow(QMainWindow):
         self.height = 480
         self.setGeometry(self.left, self.top, self.width, self.height)
         self.agent = None
+
+        self.initUI()
         self.hide()
 
     def showFor(self, ip):
         self.setWindowTitle(self.title + ' - ' + ip)
         self.agent = self.main.agent_manager.agent_map[ip]
-        self.initUI()
+        self.txtStart.setText(datetime.now().strftime("%d/%m/%Y %H:%M:%S"))
+        self.txtEnd.setText(datetime.now().strftime("%d/%m/%Y %H:%M:%S"))
         self.show()
 
     def initUI(self):
-        label_nw_time_start = QLabel(self)
-        label_nw_time_start.setText('Start date:')
-        self.txtStart = QLineEdit(self)
+        self.vbLayout = QVBoxLayout()
 
-        label_nw_label_nw_time_end = QLabel(self)
-        label_nw_label_nw_time_end.setText('End date:')
-        self.txtEnd = QLineEdit(self)
+        label_nw_time_start = QLabel('Start date:')
+        self.txtStart = QLineEdit(self, placeholderText='Period start date')
 
-        label_udpin = QLabel(self)
-        label_udpin.setText('UDP In:')
+        label_nw_label_nw_time_end = QLabel('End date:')
+        self.txtEnd = QLineEdit(self, placeholderText='Period end date')
 
-        self.lblUDPIn.value = QLabel(self)
-        self.lblUDPIn.value.setText('')
+        self.lblUDPIn = QLabel('UDP In:')
+        self.lblUDPIn.value = QLabel('')
+        self.lblUDPOut = QLabel('UDP Out:')
+        self.lblUDPOut.value = QLabel('')
+        self.lblTCPIn = QLabel('TCP In:')
+        self.lblTCPIn.value = QLabel('')
+        self.lblTCPOut = QLabel('TCP Out:')
+        self.lblTCPOut.value = QLabel('')
 
-        label_udpout = QLabel(self)
-        label_udpout.setText('UDP Out:')
+        self.btnAnalisa = QPushButton('Analyze', self)
+        self.btnAnalisa.clicked.connect(self.analisa)
 
-        self.lblUDPOut.value = QLabel(self)
-        self.lblUDPOut.value.setText('')
+        self.vbLayout.addWidget(label_nw_time_start)
+        self.vbLayout.addWidget(self.txtStart)
+        self.vbLayout.addWidget(label_nw_label_nw_time_end)
+        self.vbLayout.addWidget(self.txtEnd)
+        self.vbLayout.addWidget(self.lblUDPIn)
+        self.vbLayout.addWidget(self.lblUDPIn.value)
+        self.vbLayout.addWidget(self.lblUDPOut)
+        self.vbLayout.addWidget(self.lblUDPOut.value)
+        self.vbLayout.addWidget(self.lblTCPIn)
+        self.vbLayout.addWidget(self.lblTCPIn.value)
+        self.vbLayout.addWidget(self.lblTCPOut)
+        self.vbLayout.addWidget(self.lblTCPOut.value)
+        self.vbLayout.addWidget(self.btnAnalisa)
 
-        label_tcpin = QLabel(self)
-        label_tcpin.setText('TCP In:')
+        self.setLayout(self.vbLayout)
 
-        self.lblTCPIn.value = QLabel(self)
-        self.lblTCPIn.value.setText('')
-
-        label_tcpppout = QLabel(self)
-        label_tcpppout.setText('TCP Out:')
-
-        self.lblTCPOut.value = QLabel(self)
-        self.lblTCPOut.value.setText('')
 
     def analisa(self):
         start = int(datetime.strptime(self.txtStart.text(), "%d/%m/%Y %H:%M:%S").timestamp())

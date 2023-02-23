@@ -12,7 +12,6 @@ from datetime import datetime
 import pickle
 import sys
 
-
 class mainGUI(QWidget):
     status = "STATUS: "
 
@@ -249,9 +248,6 @@ class mainGUI(QWidget):
         # adiciona uma linha
         self.tblAgents.insertRow(rowPosition)
         agentData = self.agent_manager.get_data()[agent.ip]
-        tcpData = agentData['tcp']
-        udpData = agentData['udp']
-        quotaData = agentData['quota']
 
         # adiciona os dados
         statusWidget = QTableWidgetItem(agent.status)
@@ -265,17 +261,17 @@ class mainGUI(QWidget):
 
         # adiciona os dados do udp
         for index, item in enumerate(UDP.tags):
-            self.tblAgents.setItem(rowPosition, index + 5, QTableWidgetItem(udpData[item]))
+            self.tblAgents.setItem(rowPosition, index + 5, QTableWidgetItem(agentData[item]))
 
         # adiciona os dados do tcp
         for index, item in enumerate(TCP.tags):
-            self.tblAgents.setItem(rowPosition, index + 8, QTableWidgetItem(tcpData[item]))
+            self.tblAgents.setItem(rowPosition, index + 8, QTableWidgetItem(agentData[item]))
 
         # adiciona os dados de quota
         for index, item in enumerate(QuotaMonitor.tags):
-            self.tblAgents.setItem(rowPosition, index + 15, QTableWidgetItem(quotaData[item]))
-            if int(quotaData[item]) > int(self.quota_user):
-                exceeded_quota = int(quotaData[item]) - int(self.quota_user)
+            self.tblAgents.setItem(rowPosition, index + 15, QTableWidgetItem(agentData[item]))
+            if int(agentData[item]) > int(self.quota_user):
+                exceeded_quota = int(agentData[item]) - int(self.quota_user)
                 cellExceeded = QTableWidgetItem(str(exceeded_quota))
                 cellExceeded.setIcon(QIcon.fromTheme('dialog-warning'))
             else:

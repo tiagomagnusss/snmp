@@ -35,12 +35,12 @@ class DataManager():
     i = 0
     while ( time_start > data[i]["timestamp"] ):
       i += 1
-    start = data[i]["value"]
+    start = int(data[i]["value"])
 
     i = len(data) - 1
     while ( time_end < data[i]["timestamp"] ):
       i -= 1
-    end = data[i]["value"]
+    end = int(data[i]["value"])
 
     return end - start
 
