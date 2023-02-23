@@ -211,7 +211,7 @@ class mainGUI(QWidget):
         """ Atualiza a tabela de agentes """
         # atualiza os agentes
         for rowPosition, agent in enumerate(self.agents):
-            agentData = self.agent_manager.data[agent.ip]
+            agentData = self.agent_manager.get_data()[agent.ip]
 
             if agentData is None or agentData == {}:
                 self.tblAgents.setItem(rowPosition, 0, QTableWidgetItem(agent.status))
@@ -222,7 +222,10 @@ class mainGUI(QWidget):
             udpData = agentData['udp']
             quotaData = agentData['quota']
 
-            self.tblAgents.setItem(rowPosition, 0, QTableWidgetItem(agent.status))
+            statusWidget = QTableWidgetItem(agent.status)
+            statusIcon = 'network-transmit' if agent.status == 'Connected' else 'network-error'
+            statusWidget.setIcon(QIcon.fromTheme(statusIcon))
+            self.tblAgents.setItem(rowPosition, 0, statusWidget)
             self.tblAgents.setItem(rowPosition, 1, QTableWidgetItem(agent.ip))
             self.tblAgents.setItem(rowPosition, 2, QTableWidgetItem(agent.user))
             self.tblAgents.setItem(rowPosition, 3, QTableWidgetItem(agent.authProtocol))
@@ -260,13 +263,16 @@ class mainGUI(QWidget):
 
         # adiciona uma linha
         self.tblAgents.insertRow(rowPosition)
-        agentData = self.agent_manager.data[agent.ip]
+        agentData = self.agent_manager.get_data()[agent.ip]
         tcpData = agentData['tcp']
         udpData = agentData['udp']
         quotaData = agentData['quota']
 
         # adiciona os dados
-        self.tblAgents.setItem(rowPosition, 0, QTableWidgetItem(agent.status))
+        statusWidget = QTableWidgetItem(agent.status)
+        statusIcon = 'network-transmit' if agent.status == 'Connected' else 'network-error'
+        statusWidget.setIcon(QIcon.fromTheme(statusIcon))
+        self.tblAgents.setItem(rowPosition, 0, statusWidget)
         self.tblAgents.setItem(rowPosition, 1, QTableWidgetItem(agent.ip))
         self.tblAgents.setItem(rowPosition, 2, QTableWidgetItem(agent.user))
         self.tblAgents.setItem(rowPosition, 3, QTableWidgetItem(agent.authProtocol))
