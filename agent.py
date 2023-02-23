@@ -26,7 +26,7 @@ class Agent():
         }
 
     # gets udp and tcp data
-    def get_data(self, session):
+    def get_data(self, session, timestamp):
         if ( self.tcp is None ):
             self.tcp = TCP(session)
 
@@ -37,11 +37,13 @@ class Agent():
             self.quota = QuotaMonitor(session)
 
         data = {}
-        try:
-            data['tcp'] = self.tcp.get_data()
-            data['udp'] = self.udp.get_data()
-            data['quota'] = self.quota.get_data()
+        if type(timestamp) is Agent:
+            i = 1
 
+        try:
+            data['tcp'] = self.tcp.get_data(timestamp)
+            data['udp'] = self.udp.get_data(timestamp)
+            data['quota'] = self.quota.get_data(timestamp)
 
             if session.error_string != '' and data['tcp'] == {} and data['udp'] == {} and data['quota'] == {}:
                 self.status = session.error_string

@@ -68,12 +68,15 @@ class AgentManager():
             agent.status = str(e)
             return None
 
-    def update_data(self, agent = None):
+    def update_data(self, agent = None, timestamp = 0):
+        if ( timestamp == 0 ):
+            timestamp = int(time.time())
+
         if ( agent is None ):
             for agent in self.agent_map.values():
-                self.update_data(agent)
+                self.update_data(agent, timestamp)
         else:
-            data = agent.get_data(self.session_map[agent.ip])
+            data = agent.get_data(self.session_map[agent.ip], timestamp)
             self.data[agent.ip] = data
 
     def get_data(self):
