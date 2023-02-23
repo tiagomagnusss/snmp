@@ -1,6 +1,6 @@
 from PyQt5.QtWidgets import QMainWindow, QApplication, QWidget, QMessageBox, QComboBox, QRadioButton, QLabel, QAction, QFormLayout, QHBoxLayout, QVBoxLayout, QTableWidget, QTableView, QTableWidgetItem, QPushButton, QLineEdit
 from PyQt5.QtCore import pyqtSlot, Qt, QRegExp, QTimer
-from PyQt5.QtGui import QPalette, QIcon, QColor, QRegExpValidator
+from PyQt5.QtGui import QPalette, QIcon, QColor, QRegExpValidator, QIntValidator
 
 from agent import Agent
 from agent_manager import AgentManager
@@ -36,6 +36,8 @@ class mainGUI(QWidget):
         self.defaultHeaders = ['Status', 'IP', 'User', 'Auth Protocol', 'Privacy Protocol']
         self.headerCount = len(self.defaultHeaders)
         self.statusBar = QLabel(f"{mainGUI.status} Ready")
+        self.quota_user = 0
+
 
         self.initUI()
 
@@ -47,7 +49,8 @@ class mainGUI(QWidget):
         self.createAddressBar()
         self.createView()
         self.createStatusBar()
-        self.createSaveLoadButtons()
+        self.createSaveLoadButtons()    
+        self.createQuotaBox()
 
         # Define o layout da tela
         self.setLayout(self.vbLayout)
@@ -169,6 +172,19 @@ class mainGUI(QWidget):
 
         self.vbLayout.addLayout(self.hbSaveLoad)
 
+    def createQuotaBox(self):
+        self.hbQuota = QHBoxLayout()
+        self.txtQuota = QLineEdit(self, placeholderText='Enter Quota Value')
+        self.txtQuota.setValidator(QIntValidator())
+        self.hbQuota.addWidget(QLabel('Quota Value: '))
+        self.hbQuota.addWidget(self.txtQuota)
+        self.vbLayout.addLayout(self.hbQuota)
+        self.txtQuota.textChanged.connect(self.on_quota_changed)
+
+
+    def on_quota_changed(self):
+        self.quota_user = self.txtQuota.text()
+
     def setStatus(self, status):
         """ Atualiza o texto de status """
         self.statusBar.setText(f"{mainGUI.status} {status}")
@@ -229,8 +245,8 @@ class mainGUI(QWidget):
             # adiciona os dados de quota
             for index, item in enumerate(QuotaMonitor.tags):
                 self.tblAgents.setItem(rowPosition, index + 15, QTableWidgetItem(quotaData[item]))
-                if int(quotaData[item]) > (2**32):
-                    exceeded_quota = int(quotaData[item]) - (2**32)
+                if int(quotaData[item]) > int(self.quota_user):
+                    exceeded_quota = int(quotaData[item]) - int(self.quota_user)
                 else:
                     exceeded_quota = 0            
                 self.tblAgents.setItem(rowPosition, 16, QTableWidgetItem(str(exceeded_quota)))
@@ -269,8 +285,8 @@ class mainGUI(QWidget):
         # adiciona os dados de quota
         for index, item in enumerate(QuotaMonitor.tags):
             self.tblAgents.setItem(rowPosition, index + 15, QTableWidgetItem(quotaData[item]))
-            if int(quotaData[item]) > (2**32):
-                exceeded_quota = int(quotaData[item]) - (2**32)
+            if int(quotaData[item]) > int(self.quota_user):
+                exceeded_quota = int(quotaData[item]) - int(self.quota_user)
             else:
                 exceeded_quota = 0            
             self.tblAgents.setItem(rowPosition, 16, QTableWidgetItem(str(exceeded_quota)))
