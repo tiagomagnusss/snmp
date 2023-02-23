@@ -47,10 +47,9 @@ class mainGUI(QWidget):
         self.vbLayout = QVBoxLayout()
 
         self.createAddressBar()
+        self.createQuotaBox()
         self.createView()
         self.createStatusBar()
-        self.createSaveLoadButtons()    
-        self.createQuotaBox()
 
         # Define o layout da tela
         self.setLayout(self.vbLayout)
@@ -88,6 +87,12 @@ class mainGUI(QWidget):
         self.btnAdd = QPushButton('Add agent', self)
         self.btnAdd.clicked.connect(self.on_add)
 
+        self.btnSave = QPushButton('Save', self)
+        self.btnSave.clicked.connect(self.on_save)
+
+        self.btnLoad = QPushButton('Load', self)
+        self.btnLoad.clicked.connect(self.on_load)
+
         # create line with address, ip, user, password, auth, privacy protocol and add button
         self.hbAddress.addWidget(QLabel('IP address: '))
         self.hbAddress.addWidget(self.txtIp)
@@ -100,6 +105,13 @@ class mainGUI(QWidget):
         self.hbAddress.addWidget(QLabel('Privacy Protocol: '))
         self.hbAddress.addWidget(self.cbPrivacyProtocol)
         self.hbAddress.addWidget(self.btnAdd)
+
+        self.hbAddress.addWidget(QLabel(''))
+        self.hbAddress.addWidget(QLabel(''))
+        self.hbAddress.addWidget(QLabel(''))
+        self.hbAddress.addWidget(QLabel(''))
+        self.hbAddress.addWidget(self.btnSave)
+        self.hbAddress.addWidget(self.btnLoad)
 
         # coloca na tela
         self.vbLayout.addLayout(self.hbAddress)
@@ -157,33 +169,15 @@ class mainGUI(QWidget):
         # texto de log no fim da tela
         self.vbLayout.addWidget(self.statusBar)
 
-    def createSaveLoadButtons(self):
-        """ Cria os botões de salvar e carregar """
-        self.hbSaveLoad = QHBoxLayout()
-
-        self.btnSave = QPushButton('Save', self)
-        self.btnSave.clicked.connect(self.on_save)
-
-        self.btnLoad = QPushButton('Load', self)
-        self.btnLoad.clicked.connect(self.on_load)
-
-        self.hbSaveLoad.addWidget(self.btnSave)
-        self.hbSaveLoad.addWidget(self.btnLoad)
-
-        self.vbLayout.addLayout(self.hbSaveLoad)
-
     def createQuotaBox(self):
         self.hbQuota = QHBoxLayout()
         self.txtQuota = QLineEdit(self, placeholderText='Enter Quota Value')
         self.txtQuota.setValidator(QIntValidator())
+        self.txtQuota.setText(str(self.quota_user))
         self.hbQuota.addWidget(QLabel('Quota Value: '))
         self.hbQuota.addWidget(self.txtQuota)
         self.vbLayout.addLayout(self.hbQuota)
         self.txtQuota.textChanged.connect(self.on_quota_changed)
-
-
-    def on_quota_changed(self):
-        self.quota_user = self.txtQuota.text()
 
     def setStatus(self, status):
         """ Atualiza o texto de status """
@@ -241,15 +235,19 @@ class mainGUI(QWidget):
             # adiciona os dados do tcp
             for index, item in enumerate(TCP.tags):
                 self.tblAgents.setItem(rowPosition, index + 8, QTableWidgetItem(tcpData[item]))
-            
+
             # adiciona os dados de quota
             for index, item in enumerate(QuotaMonitor.tags):
                 self.tblAgents.setItem(rowPosition, index + 15, QTableWidgetItem(quotaData[item]))
+
                 if int(quotaData[item]) > int(self.quota_user):
                     exceeded_quota = int(quotaData[item]) - int(self.quota_user)
+                    cellExceeded = QTableWidgetItem(str(exceeded_quota))
+                    cellExceeded.setIcon(QIcon.fromTheme('dialog-warning'))
                 else:
-                    exceeded_quota = 0            
-                self.tblAgents.setItem(rowPosition, 16, QTableWidgetItem(str(exceeded_quota)))
+                    exceeded_quota = 0
+                    cellExceeded = QTableWidgetItem(str(exceeded_quota))
+                self.tblAgents.setItem(rowPosition, 16, cellExceeded)
 
         self.tblAgents.resizeColumnsToContents()
         tick = datetime.now().strftime('%H:%M:%S')
@@ -281,24 +279,33 @@ class mainGUI(QWidget):
         # adiciona os dados do tcp
         for index, item in enumerate(TCP.tags):
             self.tblAgents.setItem(rowPosition, index + 8, QTableWidgetItem(tcpData[item]))
-        
+
         # adiciona os dados de quota
         for index, item in enumerate(QuotaMonitor.tags):
             self.tblAgents.setItem(rowPosition, index + 15, QTableWidgetItem(quotaData[item]))
             if int(quotaData[item]) > int(self.quota_user):
                 exceeded_quota = int(quotaData[item]) - int(self.quota_user)
+                cellExceeded = QTableWidgetItem(str(exceeded_quota))
+                cellExceeded.setIcon(QIcon.fromTheme('dialog-warning'))
             else:
-                exceeded_quota = 0            
-            self.tblAgents.setItem(rowPosition, 16, QTableWidgetItem(str(exceeded_quota)))
+                exceeded_quota = 0
+                cellExceeded = QTableWidgetItem(str(exceeded_quota))
+            self.tblAgents.setItem(rowPosition, 16, cellExceeded)
 
         # adiciona o botao de remover
         btnRemove = QPushButton('Remove', self)
         btnRemove.clicked.connect(self.on_remove)
+        btnRemove.setIcon(QIcon.fromTheme("edit-delete"))
         self.tblAgents.setCellWidget(rowPosition, self.headerCount - 1, btnRemove)
         self.tblAgents.resizeColumnsToContents()
 
         if not self.timer.isActive():
             self.timer.start()
+
+    @pyqtSlot()
+    def on_quota_changed(self):
+        self.quota_user = self.txtQuota.text()
+        self.setStatus(f"Quota changed to {self.quota_user}")
 
     @pyqtSlot()
     def on_interval_changed(self):
