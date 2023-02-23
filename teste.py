@@ -1,30 +1,30 @@
-from user import User
-import time
+# from user import User
+# import time
 
-user = User('192.168.0.10', 'MD5DESUser', "testePassword", 'MD5', 'DES')
-times = 0
+# user = User('192.168.0.10', 'MD5DESUser', "testePassword", 'MD5', 'DES')
+# times = 0
 
-time_start = time.time()
-user.updateData()
-time.sleep(5)
-user.updateData()
-time.sleep(5)
-user.updateData()
-time.sleep(5)
-user.updateData()
-time.sleep(5)
-user.updateData()
-time.sleep(5)
-user.updateData()
-time.sleep(5)
-user.updateData()
-time_end = time.time()
+# time_start = time.time()
+# user.updateData()
+# time.sleep(5)
+# user.updateData()
+# time.sleep(5)
+# user.updateData()
+# time.sleep(5)
+# user.updateData()
+# time.sleep(5)
+# user.updateData()
+# time.sleep(5)
+# user.updateData()
+# time.sleep(5)
+# user.updateData()
+# time_end = time.time()
 
 
 
-for i in range(len(user.data[user.tag_dic['tcpInSegs']])):
-    print(user.data[user.tag_dic['tcpInSegs']][i])
-user.getDataInTime(time_start, time_end, 'tcpInSegs')
+# for i in range(len(user.data[user.tag_dic['tcpInSegs']])):
+#     print(user.data[user.tag_dic['tcpInSegs']][i])
+# user.getDataInTime(time_start, time_end, 'tcpInSegs')
 
 # while(1):
 #     user.updateData()
@@ -47,3 +47,12 @@ user.getDataInTime(time_start, time_end, 'tcpInSegs')
 #         print(data[i][len(data[i])-1]['tag'], ': ', data[i][len(data[i])-1]['data'])
 #     print('------------------------------------------------')
 #     time.sleep(1)
+
+from datetime import datetime
+import time
+
+date_string = "23/02/2023 12:50:00"
+
+
+print(datetime.strptime(date_string, "%d/%m/%Y %H:%M:%S").timestamp())
+print(time.time())
