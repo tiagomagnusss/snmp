@@ -20,28 +20,27 @@ class DataManager():
 
     return new_data_map
 
-  def get_data_in_time(self, tag: str, time_start: int, time_end: int) -> list:
+  def get_data_in_time(self, tag: str, time_start: int, time_end: int) -> int:
     if ( tag not in self.data_map ):
-      return []
+      return -1
 
     data = self.data_map[tag]
     if ( len(data) < 2 ):
-      return []
-
+      return -1
     if ( time_end < data[0]["timestamp"] ):
-      return []
-
+      return -1
     if ( time_start > data[-1]["timestamp"] ):
-      return []
+      return -1
 
     i = 0
     while ( time_start > data[i]["timestamp"] ):
       i += 1
+    start = data[i]["value"]
 
-    match_data = []
-    while ( i < len(data) and data[i]["timestamp"] <= time_end ):
-      match_data.append(data[i])
-      i += 1
+    i = len(data) - 1
+    while ( time_end < data[i]["timestamp"] ):
+      i -= 1
+    end = data[i]["value"]
 
-    return match_data
+    return end - start
 

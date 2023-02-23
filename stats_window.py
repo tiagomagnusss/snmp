@@ -1,4 +1,5 @@
 from PyQt5.QtWidgets import QMainWindow, QLabel, QLineEdit
+from datetime import datetime
 
 class StatsWindow(QMainWindow):
     def __init__(self, parent):
@@ -10,68 +11,58 @@ class StatsWindow(QMainWindow):
         self.width = 640
         self.height = 480
         self.setGeometry(self.left, self.top, self.width, self.height)
+        self.agent = None
         self.hide()
 
     def showFor(self, ip):
         self.setWindowTitle(self.title + ' - ' + ip)
+        self.agent = self.main.agent_manager.agent_map[ip]
         self.initUI()
         self.show()
 
     def initUI(self):
         label_nw_time_start = QLabel(self)
-        label_nw_time_start.setText('inicio:')
-        label_nw_time_start.setGeometry(20,20,200,30)
-
-        line=QLineEdit(self)
-        line.setGeometry(70, 20,200,30)
+        label_nw_time_start.setText('Start date:')
+        self.txtStart = QLineEdit(self)
 
         label_nw_label_nw_time_end = QLabel(self)
-        label_nw_label_nw_time_end.setText('fim:')
-        label_nw_label_nw_time_end.setGeometry(300,20,200,30)
-
-        line2=QLineEdit(self)
-        line2.setGeometry(350, 20,200,30)
+        label_nw_label_nw_time_end.setText('End date:')
+        self.txtEnd = QLineEdit(self)
 
         label_udpin = QLabel(self)
-        label_udpin.setText('udpin:')
-        label_udpin.setGeometry(30,250,200,30)
+        label_udpin.setText('UDP In:')
 
-        label_udpin.value = QLabel(self)
-        label_udpin.value.setText('')
-        label_udpin.value.setGeometry(30,280,200,30)
+        self.lblUDPIn.value = QLabel(self)
+        self.lblUDPIn.value.setText('')
 
         label_udpout = QLabel(self)
-        label_udpout.setText('udpout:')
-        label_udpout.setGeometry(180,250,200,30)
+        label_udpout.setText('UDP Out:')
 
-        label_udpout.value = QLabel(self)
-        label_udpout.value.setText('')
-        label_udpout.value.setGeometry(180,280,200,30)
+        self.lblUDPOut.value = QLabel(self)
+        self.lblUDPOut.value.setText('')
 
         label_tcpin = QLabel(self)
-        label_tcpin.setText('tcpin:')
-        label_tcpin.setGeometry(330,250,200,30)
+        label_tcpin.setText('TCP In:')
 
-        label_tcpin.value = QLabel(self)
-        label_tcpin.value.setText('')
-        label_tcpin.value.setGeometry(330,280,200,30)
+        self.lblTCPIn.value = QLabel(self)
+        self.lblTCPIn.value.setText('')
 
-        label_tecppout = QLabel(self)
-        label_tecppout.setText('tcpout:')
-        label_tecppout.setGeometry(480,250,200,30)
+        label_tcpppout = QLabel(self)
+        label_tcpppout.setText('TCP Out:')
 
-        label_tecppout.value = QLabel(self)
-        label_tecppout.value.setText('')
-        label_tecppout.value.setGeometry(480,280,200,30)
+        self.lblTCPOut.value = QLabel(self)
+        self.lblTCPOut.value.setText('')
 
     def analisa(self):
-        # print(line.text())
-        # print(line2.text())
-        #print(datetime.strptime(line.text(), "%d/%m/%Y %H:%M:%S").timestamp())
-        #print(datetime.strptime(line2.text(), "%d/%m/%Y %H:%M:%S").timestamp())
-        #print(TCP.get_data_in_time('tcpInSegs', datetime.strptime(line.text(), "%d/%m/%Y %H:%M:%S").timestamp(), datetime.strptime(line2.text(), "%d/%m/%Y %H:%M:%S").timestamp()))
-        #print(UDP.get_data_in_time())
-        pass
+        start = int(datetime.strptime(self.txtStart.text(), "%d/%m/%Y %H:%M:%S").timestamp())
+        end = int(datetime.strptime(self.txtEnd.text(), "%d/%m/%Y %H:%M:%S").timestamp())
 
-    def open(self):
-        self.show()
+        tags = ['udpInDatagrams', 'udpOutDatagrams', 'tcpInSegs', 'tcpOutSegs']
+        values = []
+        for tag in tags:
+            values.append(self.agent.data_manager.get_data_in_time(tag, start, end))
+
+        self.lblUDPIn.value.setText(str(values[0]))
+        self.lblUDPOut.value.setText(str(values[1]))
+        self.lblTCPIn.value.setText(str(values[2]))
+        self.lblTCPOut.value.setText(str(values[3]))

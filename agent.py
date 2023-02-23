@@ -1,6 +1,7 @@
 from tcp import TCP
 from udp import UDP
 from quota import QuotaMonitor
+from data_manager import DataManager
 
 # define the agent class
 class Agent():
@@ -12,9 +13,7 @@ class Agent():
         self.privacyProtocol = privacyProtocol
         self.status = status
 
-        self.tcp = None
-        self.udp = None
-        self.quota = None
+        self.data_manager = None
 
     def __dict__(self):
         return {
@@ -27,25 +26,14 @@ class Agent():
 
     # gets udp and tcp data
     def get_data(self, session, timestamp):
-        if ( self.tcp is None ):
-            self.tcp = TCP(session)
-
-        if ( self.udp is None ):
-            self.udp = UDP(session)
-
-        if ( self.quota is None ):
-            self.quota = QuotaMonitor(session)
+        if ( self.data_manager is None ):
+            self.data_manager = DataManager(session, TCP.tags + UDP.tags + QuotaMonitor.tags)
 
         data = {}
-        if type(timestamp) is Agent:
-            i = 1
-
         try:
-            data['tcp'] = self.tcp.get_data(timestamp)
-            data['udp'] = self.udp.get_data(timestamp)
-            data['quota'] = self.quota.get_data(timestamp)
+            data = self.data_manager.get_data(timestamp)
 
-            if session.error_string != '' and data['tcp'] == {} and data['udp'] == {} and data['quota'] == {}:
+            if session.error_string != '' and data == {}:
                 self.status = session.error_string
             else:
                 self.status = 'Connected'
