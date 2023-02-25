@@ -2,7 +2,7 @@ from data_manager import DataManager
 
 class QuotaMonitor(DataManager):
     tags = ['ifInOctets']
-    headers = ['Utilized Quota', 'Exceeded Quota']
+    headers = ['Entry Quota']
 
     def __init__(self, session):
         self.session = session

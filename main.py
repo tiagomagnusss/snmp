@@ -225,16 +225,22 @@ class mainGUI(QWidget):
 
             # adiciona os dados de quota
             for index, item in enumerate(QuotaMonitor.tags):
-                self.tblAgents.setItem(rowPosition, index + 15, QTableWidgetItem(agentData[item]))
+                # self.tblAgents.setItem(rowPosition, index + 15, QTableWidgetItem(agentData[item]))
 
-                if int(agentData[item]) > int(self.quota_user):
-                    exceeded_quota = int(agentData[item]) - int(self.quota_user)
-                    cellExceeded = QTableWidgetItem(str(exceeded_quota))
-                    cellExceeded.setIcon(QIcon.fromTheme('dialog-warning'))
+                if int(self.quota_user) > 0 and int(agentData[item]) > 0:
+                    pct_quota = round((int(agentData[item])/int(self.quota_user))*100,2)
+
+                    if pct_quota >= 90:
+                        cellExceeded = QTableWidgetItem(str(pct_quota) + '%')
+                        cellExceeded.setIcon(QIcon.fromTheme('dialog-warning'))
+                    else:
+                        cellExceeded = QTableWidgetItem(str(pct_quota) + '%')
+                        cellExceeded.setIcon(QIcon.fromTheme('dialog-ok-apply'))
                 else:
-                    exceeded_quota = 0
-                    cellExceeded = QTableWidgetItem(str(exceeded_quota))
-                self.tblAgents.setItem(rowPosition, 16, cellExceeded)
+                    cellExceeded = QTableWidgetItem()
+                    cellExceeded.setIcon(QIcon.fromTheme('dialog-warning'))
+
+                self.tblAgents.setItem(rowPosition, index + 15, cellExceeded)
 
         self.tblAgents.resizeColumnsToContents()
         tick = datetime.now().strftime('%H:%M:%S')
@@ -269,15 +275,22 @@ class mainGUI(QWidget):
 
         # adiciona os dados de quota
         for index, item in enumerate(QuotaMonitor.tags):
-            self.tblAgents.setItem(rowPosition, index + 15, QTableWidgetItem(agentData[item]))
-            if int(agentData[item]) > int(self.quota_user):
-                exceeded_quota = int(agentData[item]) - int(self.quota_user)
-                cellExceeded = QTableWidgetItem(str(exceeded_quota))
-                cellExceeded.setIcon(QIcon.fromTheme('dialog-warning'))
+            # self.tblAgents.setItem(rowPosition, index + 15, QTableWidgetItem(agentData[item]))
+
+            if int(self.quota_user) > 0 and int(agentData[item]) > 0:
+                pct_quota = round((int(agentData[item])/int(self.quota_user))*100,2)
+
+                if pct_quota >= 90:
+                    cellExceeded = QTableWidgetItem(str(pct_quota) + '%')
+                    cellExceeded.setIcon(QIcon.fromTheme('dialog-warning'))
+                else:
+                    cellExceeded = QTableWidgetItem(str(pct_quota) + '%')
+                    cellExceeded.setIcon(QIcon.fromTheme('dialog-ok-apply'))
             else:
-                exceeded_quota = 0
-                cellExceeded = QTableWidgetItem(str(exceeded_quota))
-            self.tblAgents.setItem(rowPosition, 16, cellExceeded)
+                cellExceeded = QTableWidgetItem()
+                cellExceeded.setIcon(QIcon.fromTheme('dialog-warning'))
+
+            self.tblAgents.setItem(rowPosition, index + 15, cellExceeded)
 
         # adiciona o botao de analise
         btnAnalyze = QPushButton('Analyze', self)
