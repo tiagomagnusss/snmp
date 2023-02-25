@@ -1,6 +1,7 @@
 from PyQt5.QtWidgets import QApplication, QWidget, QMessageBox, QComboBox, QLabel, QHBoxLayout, QVBoxLayout, QTableWidget, QTableView, QTableWidgetItem, QPushButton, QLineEdit
-from PyQt5.QtCore import pyqtSlot, QRegExp, QTimer
+from PyQt5.QtCore import pyqtSlot, QRegExp, QTimer, Qt
 from PyQt5.QtGui import QPalette, QIcon, QColor, QRegExpValidator, QIntValidator
+from matplotlib import pyplot as plt
 
 from agent import Agent
 from agent_manager import AgentManager
@@ -39,7 +40,7 @@ class mainGUI(QWidget):
         self.vbLayout = QVBoxLayout()
 
         self.createAddressBar()
-        self.createQuotaBox()
+        self.createTasksBox()
         self.createView()
         self.createStatusBar()
 
@@ -157,14 +158,26 @@ class mainGUI(QWidget):
         # texto de log no fim da tela
         self.vbLayout.addWidget(self.statusBar)
 
-    def createQuotaBox(self):
+    def createTasksBox(self):
         self.hbQuota = QHBoxLayout()
+        self.vbLayout.addLayout(self.hbQuota, stretch=0)
+
+        self.btnShowQuotasCharts = QPushButton("Show Quotas", self)
+        self.btnShowFailsCharts = QPushButton("Show Fails", self)
         self.txtQuota = QLineEdit(self, placeholderText='Enter Quota Value')
         self.txtQuota.setValidator(QIntValidator())
         self.txtQuota.setText(str(self.quota_user))
-        self.hbQuota.addWidget(QLabel('Quota Value: '))
-        self.hbQuota.addWidget(self.txtQuota)
-        self.vbLayout.addLayout(self.hbQuota)
+        
+        self.hbQuota.addWidget(QLabel('Quota Value: '), alignment=Qt.AlignLeft)
+        self.hbQuota.addWidget(self.txtQuota, alignment=Qt.AlignLeft)
+        self.hbQuota.addWidget(self.btnShowQuotasCharts, alignment=Qt.AlignLeft)
+        self.hbQuota.addWidget(self.btnShowFailsCharts, alignment=Qt.AlignLeft)
+        self.hbQuota.addStretch()
+
+        # self.hbQuota.setAlignment(Qt.AlignLeft)
+
+        self.btnShowQuotasCharts.clicked.connect(self.showQuotaCharts)
+        self.btnShowFailsCharts.clicked.connect(self.showQuotaCharts)
         self.txtQuota.textChanged.connect(self.on_quota_changed)
 
     def setStatus(self, status):
@@ -225,7 +238,6 @@ class mainGUI(QWidget):
 
             # adiciona os dados de quota
             for index, item in enumerate(QuotaMonitor.tags):
-                # self.tblAgents.setItem(rowPosition, index + 15, QTableWidgetItem(agentData[item]))
 
                 if int(self.quota_user) > 0 and int(agentData[item]) > 0:
                     pct_quota = round((int(agentData[item])/int(self.quota_user))*100,2)
@@ -275,7 +287,6 @@ class mainGUI(QWidget):
 
         # adiciona os dados de quota
         for index, item in enumerate(QuotaMonitor.tags):
-            # self.tblAgents.setItem(rowPosition, index + 15, QTableWidgetItem(agentData[item]))
 
             if int(self.quota_user) > 0 and int(agentData[item]) > 0:
                 pct_quota = round((int(agentData[item])/int(self.quota_user))*100,2)
@@ -425,6 +436,23 @@ class mainGUI(QWidget):
         """ Carrega os agentes """
         self.loadAgents()
 
+    def showQuotaCharts(self):
+        """ Mostra os gráficos de pizza com os dados de quota """
+        for agent in self.agents:
+            agentData = self.agent_manager.get_data()[agent.ip]
+            if agentData is None or agentData == {}:
+                continue
+
+            for index, item in enumerate(QuotaMonitor.tags):
+                quota_labels = ['Quota Disponível', 'Quota Utilizada']
+                quota_values = [int(self.quota_user), int(agentData[item])]
+
+                fig, ax = plt.subplots()
+                ax.pie(quota_values, labels=quota_labels, autopct='%1.1f%%', startangle=90)
+                ax.axis('equal')
+                ax.set_title(f"Quota for agent {agent.user} - {agent.ip}")
+                plt.show()
+                    
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     palette = QPalette()
