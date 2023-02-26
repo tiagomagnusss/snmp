@@ -68,7 +68,7 @@ class StatsWindow(QDialog):
         tags = ['udpInDatagrams', 'udpOutDatagrams', 'tcpInSegs', 'tcpOutSegs']
         values = []
         for tag in tags:
-            values.append(self.agent.data_manager.get_data_in_time(tag, start, end))
+            values.append(self.agent.get_data_in_time(tag, start, end))
 
         self.lblUDPIn.value.setText(str(values[0]))
         self.lblUDPOut.value.setText(str(values[1]))

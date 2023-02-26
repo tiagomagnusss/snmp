@@ -62,6 +62,7 @@ class AgentManager():
                 privacy_password=privacy_password
             )
 
+            agent.session = session
             return session
         except Exception as e:
             #use exception message
@@ -76,7 +77,7 @@ class AgentManager():
             for agent in self.agent_map.values():
                 self.update_data(agent, timestamp)
         else:
-            data = agent.get_data(self.session_map[agent.ip], timestamp)
+            data = agent.get_data(timestamp)
             self.data[agent.ip] = data
 
     def get_data(self):
