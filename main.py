@@ -6,9 +6,6 @@ import matplotlib.pyplot as plt
 
 from agent import Agent
 from agent_manager import AgentManager
-from tcp import TCP
-from udp import UDP
-from quota import QuotaMonitor
 from stats_window import StatsWindow
 from datetime import datetime
 import pickle
@@ -27,8 +24,10 @@ class mainGUI(QWidget):
         self.height = 700
         self.agents = []
         self.agent_manager = AgentManager()
-        self.defaultHeaders = ['Status', 'IP', 'User', 'Auth Protocol', 'Privacy Protocol']
-        self.headerCount = len(self.defaultHeaders)
+        self.quotaTags = ['ifInOctets']
+        self.defaultHeaders = ['Status', 'IP', 'User', 'Device', 'Privacy Protocol']
+        self.performanceHeaders = ['Input Traffic', 'Output Traffic', 'Interface usage', 'Entry Quota']
+        self.headerCount = len(self.defaultHeaders) + len(self.performanceHeaders)
         self.statusBar = QLabel(f"{mainGUI.status} Ready")
         self.quota_user = 0
         self.stats = StatsWindow(self)
@@ -139,9 +138,9 @@ class mainGUI(QWidget):
         self.tblAgents.setEditTriggers(QTableWidget.NoEditTriggers)
         self.tblAgents.setAlternatingRowColors(True)
 
-        self.headerCount += len(UDP.headers) + len(TCP.headers) + len(QuotaMonitor.headers) + 2
-        self.tblAgents.setColumnCount(self.headerCount)
-        self.tblAgents.setHorizontalHeaderLabels(self.defaultHeaders + UDP.headers + TCP.headers + QuotaMonitor.headers + ['Analyze', 'Actions'])
+        self.tblAgents.setColumnCount(self.headerCount + 2)
+        self.tblAgents.setHorizontalHeaderLabels(self.defaultHeaders + self.performanceHeaders + ['Analyze', 'Actions'])
+
         self.tblAgents.resizeColumnsToContents()
 
         # coloca na tela
@@ -168,7 +167,6 @@ class mainGUI(QWidget):
         self.txtQuota = QLineEdit(self, placeholderText='Enter Quota Value (MB)')
         self.txtQuota.setValidator(QIntValidator())
         self.txtQuota.setText(str(self.quota_user))
-        
         self.hbQuota.addWidget(QLabel('Quota Value (MB): '), alignment=Qt.AlignLeft)
         self.hbQuota.addWidget(self.txtQuota, alignment=Qt.AlignLeft)
         self.hbQuota.addWidget(self.btnShowQuotasCharts, alignment=Qt.AlignLeft)
@@ -180,7 +178,6 @@ class mainGUI(QWidget):
         self.btnShowQuotasCharts.clicked.connect(self.showQuotaCharts)
         self.btnShowFailsCharts.clicked.connect(self.showQuotaCharts)
         self.txtQuota.textChanged.connect(self.on_quota_changed)
-
 
     def setStatus(self, status):
         """ Atualiza o texto de status """
@@ -210,58 +207,57 @@ class mainGUI(QWidget):
         except Exception as e:
             self.setStatus(f"Error while saving agents. {str(e)}")
 
+    def setData(self, agent, rowPosition):
+        agentData = self.agent_manager.get_data()[agent.ip]
+
+        if agentData is None or agentData == {}:
+            self.tblAgents.setItem(rowPosition, 0, QTableWidgetItem(agent.status))
+            self.setStatus(f"Error while fetching data for agent {agent.ip}")
+            return
+
+        statusWidget = QTableWidgetItem(agent.status)
+        statusIcon = 'network-transmit' if agent.status == 'Connected' else 'network-error'
+        statusWidget.setIcon(QIcon.fromTheme(statusIcon))
+        self.tblAgents.setItem(rowPosition, 0, statusWidget)
+        self.tblAgents.setItem(rowPosition, 1, QTableWidgetItem(agent.ip))
+        self.tblAgents.setItem(rowPosition, 2, QTableWidgetItem(agent.user))
+        self.tblAgents.setItem(rowPosition, 3, QTableWidgetItem(agentData["sysName"]))
+        self.tblAgents.setItem(rowPosition, 4, QTableWidgetItem(agent.privacyProtocol))
+
+        for index, item in enumerate(agent.outputTags):
+            if item == 'ifInOctets':
+                self.tblAgents.setItem(rowPosition, index + 5, self.quotaCell(agentData[item]))
+            else:
+                self.tblAgents.setItem(rowPosition, index + 5, QTableWidgetItem(agentData[item]))
+
+    def quotaCell(self, usage):
+        if self.quota_user != '':
+            if int(self.quota_user) > 0:
+                pct_quota = round(((int(usage)/1000000)/int(self.quota_user))*100,2)
+
+                if pct_quota >= 90 and pct_quota <=100:
+                    cellExceeded = QTableWidgetItem(str(pct_quota) + '%')
+                    cellExceeded.setIcon(QIcon.fromTheme('dialog-warning'))
+                if pct_quota >= 100:
+                    cellExceeded = QTableWidgetItem('> 100%')
+                    cellExceeded.setIcon(QIcon.fromTheme('dialog-warning'))
+                else:
+                    cellExceeded = QTableWidgetItem(str(pct_quota) + '%')
+                    cellExceeded.setIcon(QIcon.fromTheme('dialog-ok-apply'))
+            else:
+                cellExceeded = QTableWidgetItem()
+                cellExceeded.setIcon(QIcon.fromTheme('dialog-warning'))
+        else:
+            cellExceeded = QTableWidgetItem()
+            cellExceeded.setIcon(QIcon.fromTheme('dialog-warning'))
+
+        return cellExceeded
+
     def updateTable(self):
         """ Atualiza a tabela de agentes """
         # atualiza os agentes
         for rowPosition, agent in enumerate(self.agents):
-            agentData = self.agent_manager.get_data()[agent.ip]
-
-            if agentData is None or agentData == {}:
-                self.tblAgents.setItem(rowPosition, 0, QTableWidgetItem(agent.status))
-                self.setStatus(f"Error while fetching data for agent {agent.ip}")
-                continue
-
-            statusWidget = QTableWidgetItem(agent.status)
-            statusIcon = 'network-transmit' if agent.status == 'Connected' else 'network-error'
-            statusWidget.setIcon(QIcon.fromTheme(statusIcon))
-            self.tblAgents.setItem(rowPosition, 0, statusWidget)
-            self.tblAgents.setItem(rowPosition, 1, QTableWidgetItem(agent.ip))
-            self.tblAgents.setItem(rowPosition, 2, QTableWidgetItem(agent.user))
-            self.tblAgents.setItem(rowPosition, 3, QTableWidgetItem(agent.authProtocol))
-            self.tblAgents.setItem(rowPosition, 4, QTableWidgetItem(agent.privacyProtocol))
-
-            # adiciona os dados do udp
-            for index, item in enumerate(UDP.tags):
-                self.tblAgents.setItem(rowPosition, index + 5, QTableWidgetItem(agentData[item]))
-
-            # adiciona os dados do tcp
-            for index, item in enumerate(TCP.tags):
-                self.tblAgents.setItem(rowPosition, index + 8, QTableWidgetItem(agentData[item]))
-
-            # adiciona os dados de quota
-            for index, item in enumerate(QuotaMonitor.tags):
-
-                if self.quota_user != '':
-                    if int(self.quota_user) > 0:
-                        pct_quota = round(((int(agentData[item])/1000000)/int(self.quota_user))*100,2)
-
-                        if pct_quota >= 90 and pct_quota <=100:
-                            cellExceeded = QTableWidgetItem(str(pct_quota) + '%')
-                            cellExceeded.setIcon(QIcon.fromTheme('dialog-warning'))
-                        if pct_quota >= 100:
-                            cellExceeded = QTableWidgetItem('> 100%')
-                            cellExceeded.setIcon(QIcon.fromTheme('dialog-warning'))
-                        else:
-                            cellExceeded = QTableWidgetItem(str(pct_quota) + '%')
-                            cellExceeded.setIcon(QIcon.fromTheme('dialog-ok-apply'))
-                    else:
-                        cellExceeded = QTableWidgetItem()
-                        cellExceeded.setIcon(QIcon.fromTheme('dialog-warning'))
-                else:
-                    cellExceeded = QTableWidgetItem()
-                    cellExceeded.setIcon(QIcon.fromTheme('dialog-warning'))
-
-                self.tblAgents.setItem(rowPosition, index + 15, cellExceeded)
+            self.setData(agent, rowPosition)
 
         self.tblAgents.resizeColumnsToContents()
         tick = datetime.now().strftime('%H:%M:%S')
@@ -274,64 +270,20 @@ class mainGUI(QWidget):
 
         # adiciona uma linha
         self.tblAgents.insertRow(rowPosition)
-        agentData = self.agent_manager.get_data()[agent.ip]
-
-        # adiciona os dados
-        statusWidget = QTableWidgetItem(agent.status)
-        statusIcon = 'network-transmit' if agent.status == 'Connected' else 'network-error'
-        statusWidget.setIcon(QIcon.fromTheme(statusIcon))
-        self.tblAgents.setItem(rowPosition, 0, statusWidget)
-        self.tblAgents.setItem(rowPosition, 1, QTableWidgetItem(agent.ip))
-        self.tblAgents.setItem(rowPosition, 2, QTableWidgetItem(agent.user))
-        self.tblAgents.setItem(rowPosition, 3, QTableWidgetItem(agent.authProtocol))
-        self.tblAgents.setItem(rowPosition, 4, QTableWidgetItem(agent.privacyProtocol))
-
-        # adiciona os dados do udp
-        for index, item in enumerate(UDP.tags):
-            self.tblAgents.setItem(rowPosition, index + 5, QTableWidgetItem(agentData[item]))
-
-        # adiciona os dados do tcp
-        for index, item in enumerate(TCP.tags):
-            self.tblAgents.setItem(rowPosition, index + 8, QTableWidgetItem(agentData[item]))
-
-        # adiciona os dados de quota
-        for index, item in enumerate(QuotaMonitor.tags):
-
-            if self.quota_user != '':
-                if int(self.quota_user) > 0:
-                    pct_quota = round(((int(agentData[item])/1000000)/int(self.quota_user))*100,2)
-
-                    if pct_quota >= 90 and pct_quota <=100:
-                        cellExceeded = QTableWidgetItem(str(pct_quota) + '%')
-                        cellExceeded.setIcon(QIcon.fromTheme('dialog-warning'))
-                    if pct_quota >= 100:
-                        cellExceeded = QTableWidgetItem('> 100%')
-                        cellExceeded.setIcon(QIcon.fromTheme('dialog-warning'))
-                    else:
-                        cellExceeded = QTableWidgetItem(str(pct_quota) + '%')
-                        cellExceeded.setIcon(QIcon.fromTheme('dialog-ok-apply'))
-                else:
-                    cellExceeded = QTableWidgetItem()
-                    cellExceeded.setIcon(QIcon.fromTheme('dialog-warning'))
-            else:
-                cellExceeded = QTableWidgetItem()
-                cellExceeded.setIcon(QIcon.fromTheme('dialog-warning'))
-
-            self.tblAgents.setItem(rowPosition, index + 15, cellExceeded)
+        self.setData(agent, rowPosition)
 
         # adiciona o botao de analise
         btnAnalyze = QPushButton('Analyze', self)
         btnAnalyze.clicked.connect(self.on_analyze)
         btnAnalyze.setIcon(QIcon.fromTheme("system-search"))
+        self.tblAgents.setCellWidget(rowPosition, self.tblAgents.columnCount() - 2, btnAnalyze)
+        self.tblAgents.resizeColumnsToContents()
 
         # adiciona o botao de remover
         btnRemove = QPushButton('Remove', self)
         btnRemove.clicked.connect(self.on_remove)
         btnRemove.setIcon(QIcon.fromTheme("edit-delete"))
-
-        self.tblAgents.setCellWidget(rowPosition, self.headerCount - 1, btnRemove)
-        self.tblAgents.resizeColumnsToContents()
-        self.tblAgents.setCellWidget(rowPosition, self.headerCount - 2, btnAnalyze)
+        self.tblAgents.setCellWidget(rowPosition, self.tblAgents.columnCount() - 1, btnRemove)
         self.tblAgents.resizeColumnsToContents()
 
         if not self.timer.isActive():
@@ -467,8 +419,7 @@ class mainGUI(QWidget):
             if agentData is None or agentData == {}:
                 continue
 
-            for index, item in enumerate(QuotaMonitor.tags):
-
+            for item in self.quotaTags:
                 fig, ax = plt.subplots()
 
                 if self.quota_user != '':
@@ -492,7 +443,7 @@ class mainGUI(QWidget):
 
                 ax.axis('equal')
                 ax.set_title(f"Quota (MB) for agent {agent.user} - {agent.ip}")
-                
+
                 chartLabel = QLabel(self.allChartsWindow)
                 chartLabel.setPixmap(QPixmap.fromImage(self.matplotlibToQImage(fig)))
                 chartLabel.setMinimumSize(400, 300)
@@ -500,7 +451,7 @@ class mainGUI(QWidget):
                 hbox.addWidget(chartLabel)
 
         self.allChartsWindow.show()
-        
+
     def matplotlibToQImage(self, figure):
         canvas = FigureCanvas(figure)
         canvas.draw()
@@ -511,7 +462,7 @@ class mainGUI(QWidget):
         image = QImage(canvas.buffer_rgba(), width, height, QImage.Format_RGBA8888)
 
         return image
-    
+
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     palette = QPalette()
