@@ -1,7 +1,8 @@
-from PyQt5.QtWidgets import QApplication, QWidget, QMessageBox, QComboBox, QLabel, QHBoxLayout, QVBoxLayout, QTableWidget, QTableView, QTableWidgetItem, QPushButton, QLineEdit
+from PyQt5.QtWidgets import QDialog, QApplication, QWidget, QMessageBox, QComboBox, QLabel, QHBoxLayout, QVBoxLayout, QTableWidget, QTableView, QTableWidgetItem, QPushButton, QLineEdit
 from PyQt5.QtCore import pyqtSlot, QRegExp, QTimer, Qt
-from PyQt5.QtGui import QPalette, QIcon, QColor, QRegExpValidator, QIntValidator
-from matplotlib import pyplot as plt
+from PyQt5.QtGui import QPalette, QIcon, QColor, QRegExpValidator, QIntValidator, QPixmap, QImage
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+import matplotlib.pyplot as plt
 
 from agent import Agent
 from agent_manager import AgentManager
@@ -164,11 +165,11 @@ class mainGUI(QWidget):
 
         self.btnShowQuotasCharts = QPushButton("Show Quotas", self)
         self.btnShowFailsCharts = QPushButton("Show Fails", self)
-        self.txtQuota = QLineEdit(self, placeholderText='Enter Quota Value')
+        self.txtQuota = QLineEdit(self, placeholderText='Enter Quota Value (MB)')
         self.txtQuota.setValidator(QIntValidator())
         self.txtQuota.setText(str(self.quota_user))
         
-        self.hbQuota.addWidget(QLabel('Quota Value: '), alignment=Qt.AlignLeft)
+        self.hbQuota.addWidget(QLabel('Quota Value (MB): '), alignment=Qt.AlignLeft)
         self.hbQuota.addWidget(self.txtQuota, alignment=Qt.AlignLeft)
         self.hbQuota.addWidget(self.btnShowQuotasCharts, alignment=Qt.AlignLeft)
         self.hbQuota.addWidget(self.btnShowFailsCharts, alignment=Qt.AlignLeft)
@@ -179,6 +180,7 @@ class mainGUI(QWidget):
         self.btnShowQuotasCharts.clicked.connect(self.showQuotaCharts)
         self.btnShowFailsCharts.clicked.connect(self.showQuotaCharts)
         self.txtQuota.textChanged.connect(self.on_quota_changed)
+
 
     def setStatus(self, status):
         """ Atualiza o texto de status """
@@ -239,15 +241,22 @@ class mainGUI(QWidget):
             # adiciona os dados de quota
             for index, item in enumerate(QuotaMonitor.tags):
 
-                if int(self.quota_user) > 0 and int(agentData[item]) > 0:
-                    pct_quota = round((int(agentData[item])/int(self.quota_user))*100,2)
+                if self.quota_user != '':
+                    if int(self.quota_user) > 0:
+                        pct_quota = round(((int(agentData[item])/1000000)/int(self.quota_user))*100,2)
 
-                    if pct_quota >= 90:
-                        cellExceeded = QTableWidgetItem(str(pct_quota) + '%')
-                        cellExceeded.setIcon(QIcon.fromTheme('dialog-warning'))
+                        if pct_quota >= 90 and pct_quota <=100:
+                            cellExceeded = QTableWidgetItem(str(pct_quota) + '%')
+                            cellExceeded.setIcon(QIcon.fromTheme('dialog-warning'))
+                        if pct_quota >= 100:
+                            cellExceeded = QTableWidgetItem('> 100%')
+                            cellExceeded.setIcon(QIcon.fromTheme('dialog-warning'))
+                        else:
+                            cellExceeded = QTableWidgetItem(str(pct_quota) + '%')
+                            cellExceeded.setIcon(QIcon.fromTheme('dialog-ok-apply'))
                     else:
-                        cellExceeded = QTableWidgetItem(str(pct_quota) + '%')
-                        cellExceeded.setIcon(QIcon.fromTheme('dialog-ok-apply'))
+                        cellExceeded = QTableWidgetItem()
+                        cellExceeded.setIcon(QIcon.fromTheme('dialog-warning'))
                 else:
                     cellExceeded = QTableWidgetItem()
                     cellExceeded.setIcon(QIcon.fromTheme('dialog-warning'))
@@ -288,15 +297,22 @@ class mainGUI(QWidget):
         # adiciona os dados de quota
         for index, item in enumerate(QuotaMonitor.tags):
 
-            if int(self.quota_user) > 0 and int(agentData[item]) > 0:
-                pct_quota = round((int(agentData[item])/int(self.quota_user))*100,2)
+            if self.quota_user != '':
+                if int(self.quota_user) > 0:
+                    pct_quota = round(((int(agentData[item])/1000000)/int(self.quota_user))*100,2)
 
-                if pct_quota >= 90:
-                    cellExceeded = QTableWidgetItem(str(pct_quota) + '%')
-                    cellExceeded.setIcon(QIcon.fromTheme('dialog-warning'))
+                    if pct_quota >= 90 and pct_quota <=100:
+                        cellExceeded = QTableWidgetItem(str(pct_quota) + '%')
+                        cellExceeded.setIcon(QIcon.fromTheme('dialog-warning'))
+                    if pct_quota >= 100:
+                        cellExceeded = QTableWidgetItem('> 100%')
+                        cellExceeded.setIcon(QIcon.fromTheme('dialog-warning'))
+                    else:
+                        cellExceeded = QTableWidgetItem(str(pct_quota) + '%')
+                        cellExceeded.setIcon(QIcon.fromTheme('dialog-ok-apply'))
                 else:
-                    cellExceeded = QTableWidgetItem(str(pct_quota) + '%')
-                    cellExceeded.setIcon(QIcon.fromTheme('dialog-ok-apply'))
+                    cellExceeded = QTableWidgetItem()
+                    cellExceeded.setIcon(QIcon.fromTheme('dialog-warning'))
             else:
                 cellExceeded = QTableWidgetItem()
                 cellExceeded.setIcon(QIcon.fromTheme('dialog-warning'))
@@ -324,7 +340,7 @@ class mainGUI(QWidget):
     @pyqtSlot()
     def on_quota_changed(self):
         self.quota_user = self.txtQuota.text()
-        self.setStatus(f"Quota changed to {self.quota_user}")
+        self.setStatus(f"Quota changed to {self.quota_user} MB")
 
     @pyqtSlot()
     def on_interval_changed(self):
@@ -438,21 +454,64 @@ class mainGUI(QWidget):
 
     def showQuotaCharts(self):
         """ Mostra os gráficos de pizza com os dados de quota """
+
+         # Cria uma nova janela
+        self.allChartsWindow = QDialog(self)
+        self.allChartsWindow.setWindowTitle("Quota Monitoring")
+
+        # Cria um layout horizontal para a nova janela
+        hbox = QHBoxLayout(self.allChartsWindow)
+
         for agent in self.agents:
             agentData = self.agent_manager.get_data()[agent.ip]
             if agentData is None or agentData == {}:
                 continue
 
             for index, item in enumerate(QuotaMonitor.tags):
-                quota_labels = ['Quota Disponível', 'Quota Utilizada']
-                quota_values = [int(self.quota_user), int(agentData[item])]
 
                 fig, ax = plt.subplots()
-                ax.pie(quota_values, labels=quota_labels, autopct='%1.1f%%', startangle=90)
+
+                if self.quota_user != '':
+                    if int(self.quota_user) > 0:
+                        if (int(agentData[item])/1000000)<= int(self.quota_user):
+                            quota_values = [int(self.quota_user)-(int(agentData[item])/1000000), (int(agentData[item])/1000000)]
+                            quota_labels = ['Quota Disponível', 'Quota Utilizada']
+                            ax.pie(quota_values, labels=quota_labels, autopct=lambda pct: f'{pct:.2f}%\n({pct/100*sum(quota_values):.2f})', startangle=90, colors=['green', 'blue'])
+                        else:
+                            quota_values = [(int(agentData[item])/1000000)-int(self.quota_user), int(self.quota_user)]
+                            quota_labels = ['Quota Excedente', 'Quota Determinada']
+                            ax.pie(quota_values, labels=quota_labels, autopct=lambda pct: f'{pct:.2f}%\n({pct/100*sum(quota_values):.2f})', startangle=90, colors=['red', 'blue'])
+                    else:
+                        quota_values = [int(self.quota_user), (int(agentData[item])/1000000)]
+                        quota_labels = ['Quota Disponível', 'Quota Utilizada']
+                        ax.pie(quota_values, labels=quota_labels, autopct=lambda pct: f'{pct:.2f}%\n({pct/100*sum(quota_values):.2f})', startangle=90, colors=['green', 'blue'])
+                else:
+                    quota_values = [int(self.quota_user), (int(agentData[item])/1000000)]
+                    quota_labels = ['Quota Disponível', 'Quota Utilizada']
+                    ax.pie(quota_values, labels=quota_labels, autopct=lambda pct: f'{pct:.2f}%\n({pct/100*sum(quota_values):.2f})', startangle=90, colors=['green', 'blue'])
+
                 ax.axis('equal')
-                ax.set_title(f"Quota for agent {agent.user} - {agent.ip}")
-                plt.show()
-                    
+                ax.set_title(f"Quota (MB) for agent {agent.user} - {agent.ip}")
+                
+                chartLabel = QLabel(self.allChartsWindow)
+                chartLabel.setPixmap(QPixmap.fromImage(self.matplotlibToQImage(fig)))
+                chartLabel.setMinimumSize(400, 300)
+
+                hbox.addWidget(chartLabel)
+
+        self.allChartsWindow.show()
+        
+    def matplotlibToQImage(self, figure):
+        canvas = FigureCanvas(figure)
+        canvas.draw()
+
+        size = canvas.size()
+        width, height = size.width(), size.height()
+
+        image = QImage(canvas.buffer_rgba(), width, height, QImage.Format_RGBA8888)
+
+        return image
+    
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     palette = QPalette()
