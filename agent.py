@@ -1,6 +1,6 @@
 # define the agent class
 class Agent():
-    def __init__(self, ip, user, password, authProtocol, privacyProtocol, status = 'Connected', data_map = {}):
+    def __init__(self, ip, user, password, authProtocol, privacyProtocol, data_map = {}, status = 'Connected'):
         self.ip = ip
         self.user = user
         self.password = password
@@ -11,7 +11,7 @@ class Agent():
         self.data_map = data_map
 
         self.tags = ['sysName', 'ifInOctets', 'ifOutOctets', 'ifSpeed']
-        self.outputTags = ['inBandwidth', 'outBandwidth', 'ifBandwidth', 'ifInOctets']
+        self.outputTags = ['inBandwidth', 'outBandwidth', 'ifBandwidth']
 
     def __dict__(self):
         return {
@@ -28,12 +28,13 @@ class Agent():
         if ( len(self.tags) == 0 ):
             return {}
 
-        new_data_map = {}
+        # ignore if timestamp is the same as the last
         try:
             data = self.session.get_bulk(self.tags, non_repeaters, max_repetitions)
 
             if self.session.error_string != '' and data == {}:
                 self.status = self.session.error_string
+                self.session.error_string = ''
                 return {}
             else:
                 self.status = 'Connected'
@@ -44,15 +45,24 @@ class Agent():
                     self.data_map[item.oid] = []
 
                 self.data_map[item.oid].append({ "timestamp": timestamp, "value": item.value })
-                new_data_map[item.oid] = item.value
         except Exception as e:
             self.status = str(e)
 
         self.process_data()
-        for tag in self.outputTags:
-            if tag in new_data_map:
+        return self.generate_output()
+
+    def generate_output(self):
+        new_data_map = {}
+
+        for tag in self.outputTags + self.tags:
+            if tag not in self.data_map:
                 continue
-            new_data_map[tag] = self.data_map[tag]
+
+            if isinstance(self.data_map[tag], list):
+                new_data_map[tag] = self.data_map[tag][-1]['value']
+            else:
+                new_data_map[tag] = self.data_map[tag]
+
         return new_data_map
 
     def process_data(self):
@@ -65,6 +75,10 @@ class Agent():
 
         last_speed = int(self.data_map['ifSpeed'][-1]['value'])
         time_diff = int(self.data_map['ifInOctets'][-1]['timestamp']) - int(self.data_map['ifInOctets'][-2]['timestamp'])
+
+        if time_diff == 0:
+            return 0, 0, 0
+
         delta_in = int(self.data_map['ifInOctets'][-1]['value']) - int(self.data_map['ifInOctets'][-2]['value'])
         delta_out = int(self.data_map['ifOutOctets'][-1]['value']) - int(self.data_map['ifOutOctets'][-2]['value'])
 

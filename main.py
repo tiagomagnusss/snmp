@@ -372,7 +372,7 @@ class mainGUI(QWidget):
 
         if new_agent is None:
             # cria o agente
-            agent = Agent(ip, user, password, authProtocol, privacyProtocol)
+            agent = Agent(ip, user, password, authProtocol, privacyProtocol, {})
         else:
             agent = new_agent
 
@@ -382,6 +382,7 @@ class mainGUI(QWidget):
         if result == False:
             QMessageBox.critical(self, 'Error', f"Error adding agent: {agent.status}")
             self.setStatus(f"Error adding agent {ip}. {agent.status}")
+            del agent
             return
         elif new_agent is None:
             QMessageBox.information(self, 'Success', 'Agent added successfully')
