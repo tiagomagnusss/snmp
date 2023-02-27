@@ -63,14 +63,14 @@ class Agent():
             return 0, 0, 0
 
         last_speed = int(self.data_map['ifSpeed'][-1]['value'])
-        time_diff = int(self.data_map['ifInOctets'][-1]['value']) - int(self.data_map['ifInOctets'][-2]['value'])
+        time_diff = int(self.data_map['ifInOctets'][-1]['timestamp']) - int(self.data_map['ifInOctets'][-2]['timestamp'])
         delta_in = int(self.data_map['ifInOctets'][-1]['value']) - int(self.data_map['ifInOctets'][-2]['value'])
         delta_out = int(self.data_map['ifOutOctets'][-1]['value']) - int(self.data_map['ifOutOctets'][-2]['value'])
 
-        in_bandwidth = self.process_speed((delta_in*8*100) / (time_diff*last_speed))
-        out_bandwidth = self.process_speed((delta_out*8*100) / (time_diff*last_speed))
+        in_bandwidth = self.process_speed(round((delta_in*8*100) / (time_diff), 3))
+        out_bandwidth = self.process_speed(round((delta_out*8*100) / (time_diff), 3))
 
-        total_bandwidth = str(((delta_in + delta_out)*8*100) / (time_diff*last_speed)) + ' %'
+        total_bandwidth = str(round(((delta_in + delta_out)*8*100) / (time_diff*last_speed))) + ' %'
 
         return in_bandwidth, out_bandwidth, total_bandwidth
 
