@@ -1,6 +1,6 @@
 # define the agent class
 class Agent():
-    def __init__(self, ip, user, password, authProtocol, privacyProtocol, status = 'Connected'):
+    def __init__(self, ip, user, password, authProtocol, privacyProtocol, status = 'Connected', data_map = {}):
         self.ip = ip
         self.user = user
         self.password = password
@@ -8,11 +8,10 @@ class Agent():
         self.privacyProtocol = privacyProtocol
         self.status = status
         self.session = None
+        self.data_map = data_map
 
         self.tags = ['sysName', 'ifInOctets', 'ifOutOctets', 'ifSpeed']
         self.outputTags = ['inBandwidth', 'outBandwidth', 'ifBandwidth', 'ifInOctets']
-        self.data_manager = None
-        self.data_map = {}
 
     def __dict__(self):
         return {
@@ -20,7 +19,9 @@ class Agent():
             'user': self.user,
             'password': self.password,
             'authProtocol': self.authProtocol,
-            'privacyProtocol': self.privacyProtocol
+            'privacyProtocol': self.privacyProtocol,
+            'status': self.status,
+            'data_map': self.data_map,
         }
 
     def get_data(self, timestamp: int, non_repeaters: int = 0, max_repetitions: int = 1) -> dict:
@@ -67,10 +68,10 @@ class Agent():
         delta_in = int(self.data_map['ifInOctets'][-1]['value']) - int(self.data_map['ifInOctets'][-2]['value'])
         delta_out = int(self.data_map['ifOutOctets'][-1]['value']) - int(self.data_map['ifOutOctets'][-2]['value'])
 
-        in_bandwidth = self.process_speed(round((delta_in*8*100) / (time_diff), 3))
-        out_bandwidth = self.process_speed(round((delta_out*8*100) / (time_diff), 3))
+        in_bandwidth = self.process_speed((delta_in*8*100) / (time_diff))
+        out_bandwidth = self.process_speed((delta_out*8*100) / (time_diff))
 
-        total_bandwidth = str(round(((delta_in + delta_out)*8*100) / (time_diff*last_speed))) + ' %'
+        total_bandwidth = str(round(((delta_in + delta_out)*8*100) / (time_diff*last_speed/10), 3)) + ' %'
 
         return in_bandwidth, out_bandwidth, total_bandwidth
 
@@ -78,11 +79,11 @@ class Agent():
         if speed < 1000:
             return str(speed) + ' bps'
         elif speed < 1000000:
-            return str(speed / 1000) + ' Kbps'
+            return str(round(speed / 1000, 3)) + ' Kbps'
         elif speed < 1000000000:
-            return str(speed / 1000000) + ' Mbps'
+            return str(round(speed / 1000000, 3)) + ' Mbps'
         else:
-            return str(speed / 1000000000) + ' Gbps'
+            return str(round(speed / 1000000000, 3)) + ' Gbps'
 
     def get_data_in_time(self, tag: str, time_start: int, time_end: int) -> int:
         if ( tag not in self.data_map ):

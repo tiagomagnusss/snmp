@@ -365,14 +365,17 @@ class mainGUI(QWidget):
         elif privacyProtocol != 'None' and password == '':
             errors.append('Password is required if privacy protocol is set')
 
-
         if len(errors) > 0:
             QMessageBox.warning(self, 'Error', '. '.join(errors))
             self.setStatus(f"Error adding agent {ip}. {'. '.join(errors)}")
             return
 
-        # cria o agente
-        agent = Agent(ip, user, password, authProtocol, privacyProtocol)
+        if new_agent is None:
+            # cria o agente
+            agent = Agent(ip, user, password, authProtocol, privacyProtocol)
+        else:
+            agent = new_agent
+
         # inicia a conexão
         result = self.agent_manager.add_agent(agent)
 
@@ -403,6 +406,12 @@ class mainGUI(QWidget):
     def on_load(self):
         """ Carrega os agentes """
         self.loadAgents()
+
+    @pyqtSlot()
+    def on_close(self):
+        """ Fecha o programa """
+        self.saveAgents()
+        app.quit()
 
     def showQuotaCharts(self):
         """ Mostra os gráficos de pizza com os dados de quota """
@@ -469,5 +478,8 @@ if __name__ == '__main__':
     palette.setColor(QPalette.Background, QColor(230, 230, 230, 140))
     app.setPalette(palette)
 
+    app.setQuitOnLastWindowClosed(False)
     ex = mainGUI()
+    app.lastWindowClosed.connect(ex.on_close)
+
     sys.exit(app.exec_())
