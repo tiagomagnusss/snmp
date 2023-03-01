@@ -11,7 +11,7 @@ class Agent():
         self.data_map = data_map
 
         self.tags = ['sysName', 'ifInOctets', 'ifOutOctets', 'ifSpeed']
-        self.outputTags = ['inBandwidth', 'outBandwidth', 'ifBandwidth']
+        self.outputTags = ['inBandwidth', 'outBandwidth', 'ifBandwidth', 'ifInOctets']
 
     def __dict__(self):
         return {
