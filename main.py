@@ -1,15 +1,18 @@
+from collections import OrderedDict
 from PyQt5.QtWidgets import QDialog, QApplication, QWidget, QMessageBox, QComboBox, QLabel, QHBoxLayout, QVBoxLayout, QTableWidget, QTableView, QTableWidgetItem, QPushButton, QLineEdit
 from PyQt5.QtCore import pyqtSlot, QRegExp, QTimer, Qt
 from PyQt5.QtGui import QPalette, QIcon, QColor, QRegExpValidator, QIntValidator, QPixmap, QImage
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 import matplotlib.pyplot as plt
-
 from agent import Agent
 from agent_manager import AgentManager
 from stats_window import StatsWindow
 from datetime import datetime
 import pickle
 import sys
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+from datetime import datetime
 
 class mainGUI(QWidget):
     status = "STATUS: "
@@ -25,6 +28,7 @@ class mainGUI(QWidget):
         self.agents = []
         self.agent_manager = AgentManager()
         self.quotaTags = ['ifInOctets']
+        self.faultTags = ['ifOperStatus', 'ifAdminStatus']
         self.defaultHeaders = ['Status', 'IP', 'User', 'Device', 'Privacy Protocol']
         self.performanceHeaders = ['Input Traffic', 'Output Traffic', 'Interface usage', 'Entry Quota']
         self.headerCount = len(self.defaultHeaders) + len(self.performanceHeaders)
@@ -163,20 +167,20 @@ class mainGUI(QWidget):
         self.vbLayout.addLayout(self.hbQuota, stretch=0)
 
         self.btnShowQuotasCharts = QPushButton("Show Quotas", self)
-        self.btnShowFailsCharts = QPushButton("Show Fails", self)
+        self.btnShowFaultCharts = QPushButton("Show Fault", self)
         self.txtQuota = QLineEdit(self, placeholderText='Enter Quota Value (MB)')
         self.txtQuota.setValidator(QIntValidator())
         self.txtQuota.setText(str(self.quota_user))
         self.hbQuota.addWidget(QLabel('Quota Value (MB): '), alignment=Qt.AlignLeft)
         self.hbQuota.addWidget(self.txtQuota, alignment=Qt.AlignLeft)
         self.hbQuota.addWidget(self.btnShowQuotasCharts, alignment=Qt.AlignLeft)
-        self.hbQuota.addWidget(self.btnShowFailsCharts, alignment=Qt.AlignLeft)
+        self.hbQuota.addWidget(self.btnShowFaultCharts, alignment=Qt.AlignLeft)
         self.hbQuota.addStretch()
 
         # self.hbQuota.setAlignment(Qt.AlignLeft)
 
         self.btnShowQuotasCharts.clicked.connect(self.showQuotaCharts)
-        self.btnShowFailsCharts.clicked.connect(self.showQuotaCharts)
+        self.btnShowFaultCharts.clicked.connect(self.showFaultCharts)
         self.txtQuota.textChanged.connect(self.on_quota_changed)
 
     def setStatus(self, status):
@@ -227,7 +231,7 @@ class mainGUI(QWidget):
         for index, item in enumerate(agent.outputTags):
             if item == 'ifInOctets':
                 self.tblAgents.setItem(rowPosition, index + 5, self.quotaCell(agentData[item]))
-            else:
+            elif not (item == 'ifOperStatus' or item == 'ifAdminStatus' or item == 'ifLastChange'):
                 self.tblAgents.setItem(rowPosition, index + 5, QTableWidgetItem(agentData[item]))
 
     def quotaCell(self, usage):
@@ -461,6 +465,109 @@ class mainGUI(QWidget):
                 hbox.addWidget(chartLabel)
 
         self.allChartsWindow.show()
+
+    def getFaultData(self):
+
+        data_oper = []
+        data_admin = []
+
+        for agent in self.agents:
+            for tag in self.faultTags:
+                for item in agent.data_map[tag]:
+                    item_chart = item.copy()
+                    if item['value'] == '1':
+                        item_chart['value'] = '0'
+                        item_chart['agent'] = agent.user
+                        item_chart['ip'] = agent.ip
+                    else:
+                        print('value')
+                        item_chart['value'] = '1'
+                        item_chart['agent'] = agent.user
+                        item_chart['ip'] = agent.ip
+
+                    if tag == 'ifOperStatus':
+                        data_oper.append(item_chart)
+                    else:
+                        data_admin.append(item_chart)
+
+
+        # Crie um dicionário para armazenar os dados
+        data = {}
+
+        # Itere sobre cada dicionário em data_oper e data_admin
+        for item in data_oper + data_admin:
+            # Crie a chave do dicionário usando a combinação de timestamp, agent e ip
+            key = (item['timestamp'], item['agent'], item['ip'])
+            # Verifique se a chave existe no dicionário
+            if key in data:
+                # Se o valor do dicionário existente for '1', mantenha o dicionário existente
+                if data[key]['value'] == '1':
+                    continue
+                # Se o valor do dicionário atual for '1', atualize a chave com o valor atual do dicionário
+                if item['value'] == '1':
+                    data[key] = item
+                # Caso contrário, mantenha o primeiro dicionário encontrado com valor '0'
+                else:
+                    continue
+            # Se a chave não existir, adicione a chave com o valor atual do dicionário
+            else:
+                data[key] = item
+
+        # Converta o dicionário resultante em uma lista de dicionários
+        data_list = list(data.values())
+
+        ips = [item['ip'] for item in data_list]
+        ips = list(OrderedDict.fromkeys(ips))
+
+        return data_list, ips
+
+    def showFaultCharts(self):
+        # Cria uma nova janela
+        self.allChartsWindow = QDialog(self)
+        self.allChartsWindow.setWindowTitle("Fault Monitoring")
+
+        # Cria um layout horizontal para a nova janela
+        hbox = QHBoxLayout(self.allChartsWindow)
+
+        data_list, allIps = self.getFaultData()
+
+        # criar a figura e os eixos do gráfico
+        fig, ax = plt.subplots(figsize=(12,6), dpi=100)
+
+        # definir o formato de data para o eixo x
+        date_fmt = mdates.DateFormatter('%Y-%m-%d %H:%M:%S')
+        ax.xaxis.set_major_formatter(date_fmt)
+        
+        for ip in allIps:
+            timestamps = []
+            values = []
+            for item in data_list:
+                if item['ip'] == ip:
+                    # converter o timestamp em datetime
+                    timestamps.append(datetime.fromtimestamp(int(item['timestamp'])))
+
+                    # extrair os valores de 'value' para cada lista
+                    values.append(int(item['value']) )
+
+            # plotar as linhas
+            ax.plot(timestamps, values, label=ip)
+
+        # adicionar o título e as legendas
+        ax.set_title('Status da Interface')
+        ax.set_xlabel('Tempo')
+        ax.set_ylabel('Falha')
+        ax.set_ylim(0, 1)
+        hours = mdates.HourLocator(interval=1)
+        ax.xaxis.set_major_locator(hours)
+        ax.legend()
+
+        chartLabel = QLabel(self.allChartsWindow)
+        chartLabel.setPixmap(QPixmap.fromImage(self.matplotlibToQImage(fig)))
+        chartLabel.setMinimumSize(400, 300)
+
+        hbox.addWidget(chartLabel)
+
+        self.allChartsWindow.show()         
 
     def matplotlibToQImage(self, figure):
         canvas = FigureCanvas(figure)
