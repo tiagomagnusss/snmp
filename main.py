@@ -537,7 +537,8 @@ class mainGUI(QWidget):
         # definir o formato de data para o eixo x
         date_fmt = mdates.DateFormatter('%Y-%m-%d %H:%M:%S')
         ax.xaxis.set_major_formatter(date_fmt)
-        
+        ax.grid(True, color='k', linestyle='-', linewidth=0.05)
+
         for ip in allIps:
             timestamps = []
             values = []
@@ -555,7 +556,7 @@ class mainGUI(QWidget):
         # adicionar o título e as legendas
         ax.set_title('Status da Interface')
         ax.set_xlabel('Tempo')
-        ax.set_ylabel('Falha')
+        ax.set_ylabel('Falha(s)')
         ax.set_ylim(0, 2)
         hours = mdates.HourLocator(interval=1)
         ax.xaxis.set_major_locator(hours)
@@ -567,7 +568,7 @@ class mainGUI(QWidget):
 
         hbox.addWidget(chartLabel)
 
-        self.allChartsWindow.show()         
+        self.allChartsWindow.show()
 
     def matplotlibToQImage(self, figure):
         canvas = FigureCanvas(figure)
