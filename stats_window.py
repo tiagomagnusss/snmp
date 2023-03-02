@@ -7,6 +7,7 @@ from PyQt5 import QtCore, QtWidgets
 
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
+import matplotlib.dates as mdates
 
 from PyQt5.QtWidgets import QDialog, QLabel, QLineEdit, QPushButton, QHBoxLayout, QVBoxLayout
 from datetime import datetime
@@ -26,7 +27,7 @@ class StatsWindow(QDialog):
         self.title = 'Statistics'
         self.left = 100
         self.top = 100
-        self.width = 640
+        self.width = 1200
         self.height = 570
         self.setGeometry(self.left, self.top, self.width, self.height)
         self.agent = None
@@ -89,7 +90,7 @@ class StatsWindow(QDialog):
 
         if len(self.agent.data_map['ifInOctets']) > 2 and len(self.agent.data_map['ifInOctets']) <= 30:
            for x in range(1, len(self.agent.data_map['ifInOctets'])):
-               time_stamp.append(int(self.agent.data_map['ifInOctets'][x]['timestamp']))
+               time_stamp.append(datetime.fromtimestamp(int(self.agent.data_map['ifInOctets'][x]['timestamp'])))
                
                dataIn = int(self.agent.data_map['ifInOctets'][x]['value']) - int(self.agent.data_map['ifInOctets'][x-1]['value'])
                dataOut = int(self.agent.data_map['ifInOctets'][x]['value']) - int(self.agent.data_map['ifInOctets'][x-1]['value'])
@@ -99,7 +100,7 @@ class StatsWindow(QDialog):
         
         if len(self.agent.data_map['ifInOctets']) > 30:
            for x in range(len(self.agent.data_map['ifInOctets']) - 30, len(self.agent.data_map['ifInOctets'])):
-               time_stamp.append(int(self.agent.data_map['ifInOctets'][x]['timestamp']))
+               time_stamp.append(datetime.fromtimestamp(int(self.agent.data_map['ifInOctets'][x]['timestamp'])))
                
                dataIn = int(self.agent.data_map['ifInOctets'][x]['value']) - int(self.agent.data_map['ifInOctets'][x-1]['value'])
                dataOut = int(self.agent.data_map['ifInOctets'][x]['value']) - int(self.agent.data_map['ifInOctets'][x-1]['value'])
@@ -115,7 +116,10 @@ class StatsWindow(QDialog):
         # print(dataTotal)        
         
         self.canvas.axes.cla()  # Clear the canvas.
+        date_fmt = mdates.DateFormatter('%H:%M:%S - %d/%m/%Y')
+        self.canvas.axes.xaxis.set_major_formatter(date_fmt)
         self.canvas.axes.yaxis.label.set_text('kbps')
-        self.canvas.axes.xaxis.label.set_text('time stamp')
+        self.canvas.axes.xaxis.set_major_formatter(date_fmt)
+        #self.canvas.axes.xaxis.label.set_text('time stamp')
         self.canvas.axes.plot(time_stamp, dataTotal, 'b')
         self.canvas.draw()
