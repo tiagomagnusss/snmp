@@ -475,12 +475,12 @@ class mainGUI(QWidget):
             for tag in self.faultTags:
                 for item in agent.data_map[tag]:
                     item_chart = item.copy()
+
                     if item['value'] == '1':
                         item_chart['value'] = '0'
                         item_chart['agent'] = agent.user
                         item_chart['ip'] = agent.ip
                     else:
-                        print('value')
                         item_chart['value'] = '1'
                         item_chart['agent'] = agent.user
                         item_chart['ip'] = agent.ip
@@ -556,7 +556,7 @@ class mainGUI(QWidget):
         ax.set_title('Status da Interface')
         ax.set_xlabel('Tempo')
         ax.set_ylabel('Falha')
-        ax.set_ylim(0, 1)
+        ax.set_ylim(0, 2)
         hours = mdates.HourLocator(interval=1)
         ax.xaxis.set_major_locator(hours)
         ax.legend()
