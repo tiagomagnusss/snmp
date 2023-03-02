@@ -1,5 +1,23 @@
+import sys
+import random
+import matplotlib
+matplotlib.use('Qt5Agg')
+
+from PyQt5 import QtCore, QtWidgets
+
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.figure import Figure
+
 from PyQt5.QtWidgets import QDialog, QLabel, QLineEdit, QPushButton, QHBoxLayout, QVBoxLayout
 from datetime import datetime
+
+class MplCanvas(FigureCanvas):
+
+    def __init__(self, parent=None, width=5, height=4, dpi=100):
+        fig = Figure(figsize=(width, height), dpi=dpi)
+        self.axes = fig.add_subplot(111)
+        super(MplCanvas, self).__init__(fig)
+
 
 class StatsWindow(QDialog):
     def __init__(self, parent):
@@ -9,7 +27,7 @@ class StatsWindow(QDialog):
         self.left = 100
         self.top = 100
         self.width = 640
-        self.height = 480
+        self.height = 570
         self.setGeometry(self.left, self.top, self.width, self.height)
         self.agent = None
 
@@ -19,58 +37,85 @@ class StatsWindow(QDialog):
     def showFor(self, ip):
         self.setWindowTitle(self.title + ' - ' + ip)
         self.agent = self.main.agent_manager.agent_map[ip]
-        self.txtStart.setText(datetime.now().strftime("%d/%m/%Y %H:%M:%S"))
-        self.txtEnd.setText(datetime.now().strftime("%d/%m/%Y %H:%M:%S"))
+        self.update_plot()
+        
+        self.timer = QtCore.QTimer()
+        self.timer.setInterval(100)
+        self.timer.timeout.connect(self.update_plot)
+        self.timer.start()
         self.show()
 
     def initUI(self):
         self.vbLayout = QVBoxLayout()
+        self.lblInErrors = QLabel('Porcentagem de erros na entrada:') 
+        self.lblOutErrors = QLabel('Porcentagem de erros na saída:') 
+        self.lblInDiscards = QLabel('Porcentagem de descarte na entrada:') 
+        self.lblOutDiscards = QLabel('Porcentagem de descarte na saída:')
+        self.lblifOutQLen = QLabel('Pacotes na fila de saída:') 
 
-        label_nw_time_start = QLabel('Start date:')
-        self.txtStart = QLineEdit(self, placeholderText='Period start date')
+        self.canvas = MplCanvas(self, width=5, height=4, dpi=100)
 
-        label_nw_label_nw_time_end = QLabel('End date:')
-        self.txtEnd = QLineEdit(self, placeholderText='Period end date')
-
-        self.lblUDPIn = QLabel('UDP In:')
-        self.lblUDPIn.value = QLabel('')
-        self.lblUDPOut = QLabel('UDP Out:')
-        self.lblUDPOut.value = QLabel('')
-        self.lblTCPIn = QLabel('TCP In:')
-        self.lblTCPIn.value = QLabel('')
-        self.lblTCPOut = QLabel('TCP Out:')
-        self.lblTCPOut.value = QLabel('')
-
-        self.btnAnalisa = QPushButton('Analyze', self)
-        self.btnAnalisa.clicked.connect(self.analisa)
-
-        self.vbLayout.addWidget(label_nw_time_start)
-        self.vbLayout.addWidget(self.txtStart)
-        self.vbLayout.addWidget(label_nw_label_nw_time_end)
-        self.vbLayout.addWidget(self.txtEnd)
-        self.vbLayout.addWidget(self.lblUDPIn)
-        self.vbLayout.addWidget(self.lblUDPIn.value)
-        self.vbLayout.addWidget(self.lblUDPOut)
-        self.vbLayout.addWidget(self.lblUDPOut.value)
-        self.vbLayout.addWidget(self.lblTCPIn)
-        self.vbLayout.addWidget(self.lblTCPIn.value)
-        self.vbLayout.addWidget(self.lblTCPOut)
-        self.vbLayout.addWidget(self.lblTCPOut.value)
-        self.vbLayout.addWidget(self.btnAnalisa)
-
+        self.vbLayout.addWidget(self.canvas)
+        self.vbLayout.addWidget(self.lblInErrors)
+        self.vbLayout.addWidget(self.lblOutErrors)
+        self.vbLayout.addWidget(self.lblInDiscards)
+        self.vbLayout.addWidget(self.lblOutDiscards)
+        self.vbLayout.addWidget(self.lblifOutQLen)
+        
         self.setLayout(self.vbLayout)
 
+    
+    def update_plot(self):
+        # Drop off the first y element, append a new one.
+        #self.ydata = self.ydata[1:] + [random.randint(0, 10)]
+        #self.zdata = self.zdata[1:] + [random.randint(0, 5)]
 
-    def analisa(self):
-        start = int(datetime.strptime(self.txtStart.text(), "%d/%m/%Y %H:%M:%S").timestamp())
-        end = int(datetime.strptime(self.txtEnd.text(), "%d/%m/%Y %H:%M:%S").timestamp())
+        ifInUcastPkts = float(self.agent.data_map['ifInUcastPkts'][len(self.agent.data_map['ifInUcastPkts']) - 1]['value'])
+        ifInNUcastPkts = float(self.agent.data_map['ifInNUcastPkts'][len(self.agent.data_map['ifInNUcastPkts']) - 1]['value'])
+        ifInErrors = float(self.agent.data_map['ifInErrors'][len(self.agent.data_map['ifInErrors']) - 1]['value'])
+        ifOutErrors = float(self.agent.data_map['ifOutErrors'][len(self.agent.data_map['ifOutErrors']) - 1]['value'])
+        ifInDiscards = float(self.agent.data_map['ifInDiscards'][len(self.agent.data_map['ifInDiscards']) - 1]['value'])
+        ifOutDiscards = float(self.agent.data_map['ifOutDiscards'][len(self.agent.data_map['ifOutDiscards']) - 1]['value'])
+        ifOutQLen = int(self.agent.data_map['ifOutQLen'][len(self.agent.data_map['ifOutQLen']) - 1]['value'])
 
-        tags = ['udpInDatagrams', 'udpOutDatagrams', 'tcpInSegs', 'tcpOutSegs']
-        values = []
-        for tag in tags:
-            values.append(self.agent.get_data_in_time(tag, start, end))
+        self.lblInErrors.setText('Porcentagem de erros na entrada: ' + str(ifInErrors/(ifInUcastPkts+ifInNUcastPkts)) + '%')        
+        self.lblOutErrors.setText('Porcentagem de erros na saída: ' + str(ifOutErrors/(ifInUcastPkts+ifInNUcastPkts)) + '%')
+        self.lblInDiscards.setText('Porcentagem de descarte na entrada: ' + str(ifInDiscards/(ifInUcastPkts+ifInNUcastPkts)) + '%')        
+        self.lblOutDiscards.setText('Porcentagem de descarte na saída: ' + str(ifOutDiscards/(ifInUcastPkts+ifInNUcastPkts)) + '%')
+        self.lblifOutQLen.setText('Pacotes na fila de saída: ' + str(ifOutQLen) + 'pkts')
 
-        self.lblUDPIn.value.setText(str(values[0]))
-        self.lblUDPOut.value.setText(str(values[1]))
-        self.lblTCPIn.value.setText(str(values[2]))
-        self.lblTCPOut.value.setText(str(values[3]))
+        time_stamp = []
+        dataTotal = []
+
+        if len(self.agent.data_map['ifInOctets']) > 2 and len(self.agent.data_map['ifInOctets']) <= 30:
+           for x in range(1, len(self.agent.data_map['ifInOctets'])):
+               time_stamp.append(int(self.agent.data_map['ifInOctets'][x]['timestamp']))
+               
+               dataIn = int(self.agent.data_map['ifInOctets'][x]['value']) - int(self.agent.data_map['ifInOctets'][x-1]['value'])
+               dataOut = int(self.agent.data_map['ifInOctets'][x]['value']) - int(self.agent.data_map['ifInOctets'][x-1]['value'])
+               data = dataIn + dataOut
+               time_diff = int(self.agent.data_map['ifInOctets'][x]['timestamp']) - int(self.agent.data_map['ifInOctets'][x-1]['timestamp'])
+               dataTotal.append((1/(10*time_diff))*8*(data))    
+        
+        if len(self.agent.data_map['ifInOctets']) > 30:
+           for x in range(len(self.agent.data_map['ifInOctets']) - 30, len(self.agent.data_map['ifInOctets'])):
+               time_stamp.append(int(self.agent.data_map['ifInOctets'][x]['timestamp']))
+               
+               dataIn = int(self.agent.data_map['ifInOctets'][x]['value']) - int(self.agent.data_map['ifInOctets'][x-1]['value'])
+               dataOut = int(self.agent.data_map['ifInOctets'][x]['value']) - int(self.agent.data_map['ifInOctets'][x-1]['value'])
+               data = dataIn + dataOut
+               time_diff = int(self.agent.data_map['ifInOctets'][x]['timestamp']) - int(self.agent.data_map['ifInOctets'][x-1]['timestamp'])
+               dataTotal.append((1/(10*time_diff))*8*(data))               
+        
+        # print('size ---------------------------')
+        # print(len(self.agent.data_map['ifInOctets']))        
+        # print('time ---------------------------')
+        # print(time_stamp)
+        # print('data ---------------------------')
+        # print(dataTotal)        
+        
+        self.canvas.axes.cla()  # Clear the canvas.
+        self.canvas.axes.yaxis.label.set_text('kbps')
+        self.canvas.axes.xaxis.label.set_text('time stamp')
+        self.canvas.axes.plot(time_stamp, dataTotal, 'b')
+        self.canvas.draw()

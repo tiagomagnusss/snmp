@@ -10,7 +10,7 @@ class Agent():
         self.session = None
         self.data_map = data_map
 
-        self.tags = ['sysName', 'ifInOctets', 'ifOutOctets', 'ifSpeed', 'ifOperStatus', 'ifAdminStatus']
+        self.tags = ['sysName', 'ifInOctets', 'ifOutOctets', 'ifSpeed', 'ifOperStatus', 'ifAdminStatus', 'ifInUcastPkts', 'ifOutUcastPkts', 'ifInNUcastPkts', 'ifOutNUcastPkts', 'ifInErrors', 'ifOutErrors', 'ifInDiscards', 'ifOutDiscards', 'ifOutQLen' ]
         self.outputTags = ['inBandwidth', 'outBandwidth', 'ifBandwidth', 'ifInOctets']
 
     def __dict__(self):
