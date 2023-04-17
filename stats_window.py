@@ -8,6 +8,7 @@ from PyQt5 import QtCore, QtWidgets
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 import matplotlib.dates as mdates
+from scipy import stats
 
 from PyQt5.QtWidgets import QDialog, QLabel, QLineEdit, QPushButton, QHBoxLayout, QVBoxLayout
 from datetime import datetime
@@ -47,22 +48,22 @@ class StatsWindow(QDialog):
 
     def initUI(self):
         self.vbLayout = QVBoxLayout()
-        self.lblInErrors = QLabel('Porcentagem de erros na entrada:')
-        self.lblOutErrors = QLabel('Porcentagem de erros na saída:')
-        self.lblInDiscards = QLabel('Porcentagem de descarte na entrada:')
-        self.lblOutDiscards = QLabel('Porcentagem de descarte na saída:')
-        self.lblifOutQLen = QLabel('Pacotes na fila de saída:')
+        self.lblGraphInstant = QLabel('Gráfico de consumo instantâneo:')
+        self.lblGraphPerfil = QLabel('Gráfico perfil de usuário:')
+
+        self.vbLayout.addWidget(self.lblGraphInstant)
 
         self.canvas = MplCanvas(self, width=5, height=8, dpi=100)
 
         self.vbLayout.addWidget(self.canvas)
         self.vbLayout.addStretch(1)
 
-        self.vbLayout.addWidget(self.lblInErrors)
-        self.vbLayout.addWidget(self.lblOutErrors)
-        self.vbLayout.addWidget(self.lblInDiscards)
-        self.vbLayout.addWidget(self.lblOutDiscards)
-        self.vbLayout.addWidget(self.lblifOutQLen)
+        self.vbLayout.addWidget(self.lblGraphPerfil)
+
+        self.perfil_canvas = MplCanvas(self, width=5, height=8, dpi=100)
+        self.vbLayout.addWidget(self.perfil_canvas)
+
+
 
         self.setLayout(self.vbLayout)
 
@@ -72,22 +73,10 @@ class StatsWindow(QDialog):
         #self.ydata = self.ydata[1:] + [random.randint(0, 10)]
         #self.zdata = self.zdata[1:] + [random.randint(0, 5)]
 
-        ifInUcastPkts = float(self.agent.data_map['ifInUcastPkts'][len(self.agent.data_map['ifInUcastPkts']) - 1]['value'])
-        ifInNUcastPkts = float(self.agent.data_map['ifInNUcastPkts'][len(self.agent.data_map['ifInNUcastPkts']) - 1]['value'])
-        ifInErrors = float(self.agent.data_map['ifInErrors'][len(self.agent.data_map['ifInErrors']) - 1]['value'])
-        ifOutErrors = float(self.agent.data_map['ifOutErrors'][len(self.agent.data_map['ifOutErrors']) - 1]['value'])
-        ifInDiscards = float(self.agent.data_map['ifInDiscards'][len(self.agent.data_map['ifInDiscards']) - 1]['value'])
-        ifOutDiscards = float(self.agent.data_map['ifOutDiscards'][len(self.agent.data_map['ifOutDiscards']) - 1]['value'])
-        ifOutQLen = int(self.agent.data_map['ifOutQLen'][len(self.agent.data_map['ifOutQLen']) - 1]['value'])
-
-        self.lblInErrors.setText('Porcentagem de erros na entrada: ' + str(ifInErrors/(ifInUcastPkts+ifInNUcastPkts)) + '%')
-        self.lblOutErrors.setText('Porcentagem de erros na saída: ' + str(ifOutErrors/(ifInUcastPkts+ifInNUcastPkts)) + '%')
-        self.lblInDiscards.setText('Porcentagem de descarte na entrada: ' + str(ifInDiscards/(ifInUcastPkts+ifInNUcastPkts)) + '%')
-        self.lblOutDiscards.setText('Porcentagem de descarte na saída: ' + str(ifOutDiscards/(ifInUcastPkts+ifInNUcastPkts)) + '%')
-        self.lblifOutQLen.setText('Pacotes na fila de saída: ' + str(ifOutQLen) + 'pkts')
+        frequency = 6
 
         time_stamp = []
-        dataTotal = []
+        dataTotal = []       
 
         if len(self.agent.data_map['ifInOctets']) > 2 and len(self.agent.data_map['ifInOctets']) <= 30:
            for x in range(1, len(self.agent.data_map['ifInOctets'])):
@@ -109,13 +98,54 @@ class StatsWindow(QDialog):
                time_diff = int(self.agent.data_map['ifInOctets'][x]['timestamp']) - int(self.agent.data_map['ifInOctets'][x-1]['timestamp'])
                dataTotal.append((1/(10*time_diff))*8*(data))
 
+        if len(self.agent.data_map['ifInOctets']) > frequency:
+            dataIA = []
+            xindex = 0
+            xdata = []
+
+            if((len(self.agent.data_map['ifInOctets']) % frequency) == 0):
+                for x in range(len(self.agent.data_map['ifInOctets']) - (frequency + 1), len(self.agent.data_map['ifInOctets'])):
+                    dataIn = int(self.agent.data_map['ifInOctets'][x]['value']) - int(self.agent.data_map['ifInOctets'][x-1]['value'])
+                    dataOut = int(self.agent.data_map['ifInOctets'][x]['value']) - int(self.agent.data_map['ifInOctets'][x-1]['value'])
+                    data = dataIn + dataOut
+                    time_diff = int(self.agent.data_map['ifInOctets'][x]['timestamp']) - int(self.agent.data_map['ifInOctets'][x-1]['timestamp'])
+                    dataIA.append((1/(10*time_diff))*8*(data))
+                    xdata.append(float(xindex))
+                    xindex += 1
+                
+                print('-----------------------')
+                print('x = ', xdata)                
+                print('y = ', dataIA)
+
+                slope, intercept, r, p, std_err = stats.linregress(xdata, dataIA)
+                
+                print('r = ', r)
+                print('p = ', p)
+                print('std_err = ', std_err)
+                print('-----------------------')
+
+                def myfunc(x):
+                    return slope * x + intercept
+
+                mymodel = list(map(myfunc, xdata))
+                
+                #Gráfico de consumo de perfil
+                self.perfil_canvas.axes.cla()  # Clear the canvas.
+                self.perfil_canvas.axes.yaxis.label.set_text('kbps')
+                self.perfil_canvas.axes.grid(True, color='k', linestyle='-', linewidth=0.05)
+                self.perfil_canvas.axes.plot(xdata, mymodel, dataIA, 'b')
+
+                self.perfil_canvas.draw()
+                
+
+
         # print('size ---------------------------')
         # print(len(self.agent.data_map['ifInOctets']))
         # print('time ---------------------------')
         # print(time_stamp)
         # print('data ---------------------------')
         # print(dataTotal)
-
+        #Gráfico de consumo instantâneo
         self.canvas.axes.cla()  # Clear the canvas.
         date_fmt = mdates.DateFormatter('%Y-%m-%d %H:%M:%S')
         self.canvas.axes.xaxis.set_major_formatter(date_fmt)
@@ -128,3 +158,7 @@ class StatsWindow(QDialog):
         self.canvas.axes.plot(time_stamp, dataTotal, 'b')
 
         self.canvas.draw()
+
+
+
+        
