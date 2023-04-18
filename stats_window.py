@@ -49,8 +49,8 @@ class StatsWindow(QDialog):
     def initUI(self):
         self.vbLayout = QVBoxLayout()
         self.lblGraphInstant = QLabel('Gráfico de consumo instantâneo:')
-        self.lblGraphPerfil = QLabel('Gráfico perfil de usuário:')
-        self.lblGraphPerfil2 = QLabel('Gráfico perfil de usuário2:')
+        self.lblGraphPerfil = QLabel('Gráfico de regressão linear em 6 tempos:')
+        self.lblGraphPerfil2 = QLabel('Grafico de regressão linear cumulativo:')
 
         self.vbLayout.addWidget(self.lblGraphInstant)
 
