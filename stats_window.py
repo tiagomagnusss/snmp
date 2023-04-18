@@ -83,7 +83,7 @@ class StatsWindow(QDialog):
     def update_plot(self):
 
         times_short = 3
-        times_long = 36
+        times_long = 15
 
         time_stamp = []
         dataTotal = []       
