@@ -50,6 +50,7 @@ class StatsWindow(QDialog):
         self.vbLayout = QVBoxLayout()
         self.lblGraphInstant = QLabel('Gráfico de consumo instantâneo:')
         self.lblGraphPerfil = QLabel('Gráfico perfil de usuário:')
+        self.lblGraphPerfil2 = QLabel('Gráfico perfil de usuário2:')
 
         self.vbLayout.addWidget(self.lblGraphInstant)
 
@@ -63,6 +64,15 @@ class StatsWindow(QDialog):
         self.perfil_canvas = MplCanvas(self, width=5, height=8, dpi=100)
         self.vbLayout.addWidget(self.perfil_canvas)
 
+        self.vbLayout.addWidget(self.lblGraphPerfil2)
+        self.perfil2_canvas = MplCanvas(self, width=5, height=8, dpi=100)
+        self.vbLayout.addWidget(self.perfil2_canvas)
+
+
+        self.firstTime = 0
+        self.index = 0
+        self.xdata = []
+        self.dataModel = []
 
 
         self.setLayout(self.vbLayout)
@@ -100,7 +110,7 @@ class StatsWindow(QDialog):
 
         if len(self.agent.data_map['ifInOctets']) > frequency:
             dataIA = []
-            xindex = 0
+            index = 0
             xdata = []
 
             if((len(self.agent.data_map['ifInOctets']) % frequency) == 0):
@@ -110,24 +120,31 @@ class StatsWindow(QDialog):
                     data = dataIn + dataOut
                     time_diff = int(self.agent.data_map['ifInOctets'][x]['timestamp']) - int(self.agent.data_map['ifInOctets'][x-1]['timestamp'])
                     dataIA.append((1/(10*time_diff))*8*(data))
-                    xdata.append(float(xindex))
-                    xindex += 1
+                    xdata.append(float(index))
+                    index += 1
                 
-                print('-----------------------')
-                print('x = ', xdata)                
-                print('y = ', dataIA)
+                # print('-----------------------')
+                # print('x = ', xdata)                
+                # print('y = ', dataIA)
 
                 slope, intercept, r, p, std_err = stats.linregress(xdata, dataIA)
                 
-                print('r = ', r)
-                print('p = ', p)
-                print('std_err = ', std_err)
-                print('-----------------------')
+                # print('r = ', r)
+                # print('p = ', p)
+                # print('std_err = ', std_err)
+                # print('-----------------------')
 
                 def myfunc(x):
                     return slope * x + intercept
 
                 mymodel = list(map(myfunc, xdata))
+                
+                if(self.firstTime == 0):
+                    self.dataModel.append(mymodel[0])
+                    self.dataModel.append(mymodel[len(mymodel) - 1])
+                    self.firstTime = 1
+
+                #print(len(mymodel))
                 
                 #Gráfico de consumo de perfil
                 self.perfil_canvas.axes.cla()  # Clear the canvas.
@@ -136,6 +153,9 @@ class StatsWindow(QDialog):
                 self.perfil_canvas.axes.plot(xdata, mymodel, dataIA, 'b')
 
                 self.perfil_canvas.draw()
+
+            else:
+                self.firstTime = 0
                 
 
 
@@ -158,6 +178,17 @@ class StatsWindow(QDialog):
         self.canvas.axes.plot(time_stamp, dataTotal, 'b')
 
         self.canvas.draw()
+
+        if(len(self.dataModel) > 2) :
+
+            self.perfil2_canvas.axes.cla()
+            x_perfil2 = []
+            for x in range(len(self.dataModel)):
+                x_perfil2.append(x)
+            
+            self.perfil2_canvas.axes.grid(True, color='k', linestyle='-', linewidth=0.05)
+            self.perfil2_canvas.axes.plot(x_perfil2, self.dataModel, 'b')
+            self.perfil2_canvas.draw()
 
 
 

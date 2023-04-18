@@ -57,19 +57,39 @@
 # print(datetime.strptime(date_string, "%d/%m/%Y %H:%M:%S").timestamp())
 # print(time.time())
 
-import matplotlib.pyplot as plt
-from scipy import stats
+# import matplotlib.pyplot as plt
+# from scipy import stats
 
-x = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36]
-y = [269.44, 620.48, 269.44, 483.2, 722.24, 483.2, 474.24, 483.2, 269.44, 483.2, 269.44, 483.2, 479.36, 755.52, 269.44, 483.2, 269.44, 483.2, 269.44, 483.2, 269.44, 483.2, 269.44, 269.44, 483.2, 801.28, 269.44, 269.44, 483.2, 269.44, 483.2, 483.2, 269.44, 269.44, 483.2, 269.44, 483.2]
+# x = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36]
+# y = [269.44, 620.48, 269.44, 483.2, 722.24, 483.2, 474.24, 483.2, 269.44, 483.2, 269.44, 483.2, 479.36, 755.52, 269.44, 483.2, 269.44, 483.2, 269.44, 483.2, 269.44, 483.2, 269.44, 269.44, 483.2, 801.28, 269.44, 269.44, 483.2, 269.44, 483.2, 483.2, 269.44, 269.44, 483.2, 269.44, 483.2]
 
-slope, intercept, r, p, std_err = stats.linregress(x, y)
+# slope, intercept, r, p, std_err = stats.linregress(x, y)
 
-def myfunc(x):
-  return slope * x + intercept
+# def myfunc(x):
+#   return slope * x + intercept
 
-mymodel = list(map(myfunc, x))
+# mymodel = list(map(myfunc, x))
 
-plt.scatter(x, y)
-plt.plot(x, mymodel)
-plt.show()
+# plt.scatter(x, y)
+# plt.plot(x, mymodel)
+# plt.show()
+
+
+# import numpy
+# import matplotlib.pyplot as plt
+
+# x = [1,2,3,4,5]
+# y = [100, 50, 100, 50, 100]
+
+# mymodel = numpy.poly1d(numpy.polyfit(x, y, 3))
+
+# myline = numpy.linspace(1, 5, 100)
+
+# plt.scatter(x, y)
+# plt.plot(myline, mymodel(myline))
+# plt.show()
+lst = []
+for x in range(0,6):
+    lst.append(x)    
+
+print(lst)
